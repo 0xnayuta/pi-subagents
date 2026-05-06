@@ -35,10 +35,10 @@
     "CHANGELOG.md"
   ],
   "scripts": {
-    "test": "npm run test:unit",
+    "test": "pnpm test:unit",
     "test:unit": "node --experimental-strip-types --test test/unit/*.test.ts",
     "test:integration": "node --experimental-transform-types --import ./test/support/register-loader.mjs --test test/integration/*.test.ts",
-    "test:all": "npm run test:unit && npm run test:integration"
+    "test:all": "pnpm test:unit && pnpm test:integration"
   },
   "pi": {
     "extensions": [
@@ -75,9 +75,11 @@
     "typebox": "^1.1.24"
   },
   "devDependencies": {
+    "@mariozechner/jiti": "^2.6.5",
     "@mariozechner/pi-agent-core": "^0.65.0",
     "@mariozechner/pi-ai": "^0.65.0",
     "@mariozechner/pi-coding-agent": "^0.65.0",
     "@mariozechner/pi-tui": "^0.65.2"
-  }
+  },
+  "packageManager": "pnpm@10.33.2"
 }

@@ -603,7 +603,7 @@ Pi extension for delegating tasks to subagents with chains, parallel execution, 
 ### 验收标准
 
 - `rg "chain|parallel|background|intercom|worktree|slash|tui" src` 不命中可执行路径。少量文档字符串或测试 fixture 也应尽量清理。
-- `npm test` 使用新测试集通过。
+- `pnpm test` 使用新测试集通过。
 - package 描述、files、pi 配置与 MVP 一致。
 
 ---
@@ -673,8 +673,8 @@ test/support/ts-loader.mjs
 
 ### 验收标准
 
-- `npm run test:unit` 通过。
-- `npm run test:integration` 通过。
+- `pnpm test:unit` 通过。
+- `pnpm test:integration` 通过。
 - 测试不再依赖 TUI、slash、async watcher、intercom、worktree。
 
 ---
@@ -747,7 +747,7 @@ subagent({ agent: "explorer", task: "Find where auth is implemented" })
 
 ### 维护验证
 
-- [ ] `npm run test:all` 通过。
+- [ ] `pnpm test:all` 通过。
 - [ ] `package.json` 元数据准确。
 - [ ] docs 与代码一致。
 - [ ] `rg` 检查无旧功能入口残留。
