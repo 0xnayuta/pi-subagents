@@ -20,6 +20,7 @@
 ## 决策记录
 
 - [ADR 0001：采用轻量 foreground subagent 设计](./adr/0001-lightweight-foreground-subagents.md)
+- [ADR 0002：MVP 边界决策](./adr/0002-mvp-boundary-decisions.md)
 
 ## 原始改造参考
 

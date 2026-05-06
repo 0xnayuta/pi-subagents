@@ -773,8 +773,11 @@ subagent({ agent: "explorer", task: "Find where auth is implemented" })
 
 MVP 中不要实现：
 
-- agent management actions
-- `/subagents` 之外的 slash workflow
+- agent management actions（create/update/delete）
+- `/subagents` 命令（包括所有 slash bridge、slash live state、TUI 渲染）
+- `bash` 工具在 readonly agents 中
+- `skills` 目录 / skills 注入
+- `implementer` / `tester` 写文件能力
 - background jobs
 - async status/resume/interrupt
 - chain workflow
@@ -782,10 +785,10 @@ MVP 中不要实现：
 - intercom/contact_supervisor
 - worktree/fork context
 - artifact tree
+- complex session/artifact 管理（metadata、progress file、watcher、cleanup manager）
 - per-agent model override
 - fallback model chain
 - TUI clarification UI
 - output file workflow
-- skills injection
 
 未来如果恢复任何能力，必须新增 ADR，并说明为什么它值得增加维护成本。
