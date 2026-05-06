@@ -9,6 +9,7 @@
 3. [实施路线](./guides/03-implementation-plan.md)
 4. [安全模型](./guides/04-security-model.md)
 5. [测试策略](./guides/05-testing.md)
+6. [删除清单审计](./guides/06-deletion-audit.md)
 
 ## 参考文档
 
