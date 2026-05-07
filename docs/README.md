@@ -19,6 +19,10 @@
 - [配置参考](./reference/configuration.md)
 - [结果 Schema](./reference/result-schema.md)
 
+## 已知问题
+
+- [已知问题列表](./known-issues.md)
+
 ## 决策记录
 
 - [ADR 0001：采用轻量 foreground subagent 设计](./adr/0001-lightweight-foreground-subagents.md)
