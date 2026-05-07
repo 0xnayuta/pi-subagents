@@ -57,81 +57,27 @@ simple pi subagents
 
 ---
 
-## Phase 0：建立基线与裁剪清单
+## Phase 0：建立基线与裁剪清单 ✅ 已完成
 
 ### 目标
 
 在改代码前确认所有旧能力入口，避免只删文件但仍有 import、schema、README 或测试残留。
 
-### 必查文件
+### 已完成
 
-```text
-package.json
-src/extension/index.ts
-src/extension/schemas.ts
-src/runs/foreground/subagent-executor.ts
-src/runs/foreground/execution.ts
-src/runs/shared/pi-args.ts
-src/runs/shared/pi-spawn.ts
-src/runs/shared/subagent-prompt-runtime.ts
-src/agents/agents.ts
-src/agents/frontmatter.ts
-src/shared/types.ts
-src/shared/settings.ts
-```
+- [x] 删除目录：`src/runs/background/`, `src/intercom/`, `src/slash/`, `src/tui/`, `prompts/`, `skills/`
+- [x] 删除旧文件：chain-clarify.ts, chain-execution.ts, parallel-utils.ts, model-fallback.ts, worktree.ts 等
+- [x] 重写 schemas.ts：仅保留 `agent` 和 `task` 参数
+- [x] 创建 5 个内置 agents：explorer, researcher, reviewer, implementer, tester
+- [x] 更新 package.json
+- [x] 清理旧测试，创建 MVP 测试
+- [x] 验证清理结果：`rg "chain|parallel|background|intercom|worktree|slash|tui" src` 仅 3 个文件含误报（注释/环境变量）
 
-### 裁剪分类
+### 验收标准 ✅
 
-保留/改写：
-
-```text
-src/extension/index.ts              # 重写为最小入口
-src/extension/schemas.ts            # 重写为最小 tool schema
-src/agents/frontmatter.ts           # 保留或增强
-src/runs/foreground/execution.ts    # 可裁剪复用 runSync 核心
-src/runs/shared/pi-args.ts          # 可裁剪复用 buildPiArgs
-src/runs/shared/pi-spawn.ts         # 保留
-src/runs/shared/subagent-prompt-runtime.ts # 保留并简化
-```
-
-删除或停止引用：
-
-```text
-src/runs/background/
-src/intercom/
-src/slash/
-src/tui/
-src/runs/foreground/chain-clarify.ts
-src/runs/foreground/chain-execution.ts
-src/runs/shared/parallel-utils.ts
-src/runs/shared/model-fallback.ts
-src/runs/shared/worktree.ts
-src/shared/fork-context.ts
-src/shared/artifacts.ts
-src/shared/jsonl-writer.ts
-src/shared/model-info.ts
-src/shared/session-tokens.ts
-src/shared/status-format.ts
-src/agents/chain-serializer.ts
-src/agents/agent-management.ts
-```
-
-视实现决定是否保留：
-
-```text
-src/shared/utils.ts                 # 若只需 getFinalOutput，可拆小
-src/shared/formatters.ts            # 若无 TUI/async，可删除
-src/shared/post-exit-stdio-guard.ts # runSync 仍可复用
-src/shared/atomic-json.ts           # 若无 async/artifact，可删除
-src/shared/file-coalescer.ts        # 若无 watcher，可删除
-src/shared/session-identity.ts      # 若不再管理 session，可删除
-src/agents/skills.ts                # 第一版不建议支持 skill 注入；可删除
-```
-
-### 验收标准
-
-- 明确每个旧模块的去留。
-- 先提交文档/计划，不混入代码大改。
+- [x] 明确每个旧模块的去留
+- [x] 先提交文档/计划，不混入代码大改
+- [x] MVP 测试全部通过 (86 unit + 27 test)
 
 ---
 

@@ -2,68 +2,25 @@
 
 本文档基于对项目全部源码和导入关系的审计，列出了需要删除的目录/文件，并逐一确认其属于旧高级能力。
 
-## 一、删除整个目录（6 个目录，27 个文件）
+> **状态**: ✅ 已完成 - Phase 0 完成
 
-### 1. `src/runs/background/` — async/background 执行
+## 一、删除整个目录（6 个目录，27 个文件） ✅ 已删除
 
-| 文件 | 所属能力 | 确认删除理由 |
-|---|---|---|
-| `async-execution.ts` | async/background spawn | MVP 不支持 async/background |
-| `async-job-tracker.ts` | async job polling | MVP 不支持 async/background |
-| `async-resume.ts` | async resume | MVP 不支持 resume |
-| `async-status.ts` | async status 查询 | MVP 不支持 status 查询 |
-| `completion-dedupe.ts` | async 完成去重 | MVP 不支持 async |
-| `notify.ts` | background 通知 | MVP 不支持 background |
-| `parallel-groups.ts` | parallel 分组 | MVP 不支持 parallel |
-| `result-watcher.ts` | 结果文件监听 | MVP 不支持 async result watcher |
-| `run-status.ts` | run status 检查 | MVP 不支持 status 查询 |
-| `stale-run-reconciler.ts` | 过期 run 修复 | MVP 不支持 async |
-| `subagent-runner.ts` | background runner 进程 | MVP 不支持 background |
-| `top-level-async.ts` | 顶层 async 强制 | MVP 不支持 async |
+### 1. `src/runs/background/` — async/background 执行 ✅ 已删除
 
-### 2. `src/intercom/` — 子代理与主代理通信
+### 2. `src/intercom/` — 子代理与主代理通信 ✅ 已删除
 
-| 文件 | 所属能力 | 确认删除理由 |
-|---|---|---|
-| `intercom-bridge.ts` | intercom bridge | MVP 不支持 intercom |
-| `result-intercom.ts` | 结果 intercom 投递 | MVP 不支持 intercom |
+### 3. `src/slash/` — slash 命令 ✅ 已删除
 
-### 3. `src/slash/` — slash 命令
+### 4. `src/tui/` — TUI 渲染 ✅ 已删除
 
-| 文件 | 所属能力 | 确认删除理由 |
-|---|---|---|
-| `prompt-template-bridge.ts` | prompt template delegation | MVP 不支持 slash |
-| `slash-bridge.ts` | slash bridge | MVP 不支持 slash |
-| `slash-commands.ts` | `/run` `/chain` `/parallel` 等命令 | MVP 不支持 `/subagents` 命令 |
-| `slash-live-state.ts` | slash 实时状态 | MVP 不支持 slash |
+### 5. `prompts/` — chain/parallel prompt 模板 ✅ 已删除
 
-### 4. `src/tui/` — TUI 渲染
-
-| 文件 | 所属能力 | 确认删除理由 |
-|---|---|---|
-| `render-helpers.ts` | TUI 渲染辅助 | MVP 不支持 TUI widget |
-| `render.ts` | TUI widget/动画渲染 | MVP 不支持 TUI widget |
-
-### 5. `prompts/` — chain/parallel prompt 模板
-
-| 文件 | 所属能力 | 确认删除理由 |
-|---|---|---|
-| `gather-context-and-clarify.md` | clarify prompt | MVP 不支持 clarify |
-| `parallel-cleanup.md` | parallel prompt | MVP 不支持 parallel |
-| `parallel-context-build.md` | parallel prompt | MVP 不支持 parallel |
-| `parallel-handoff-plan.md` | parallel prompt | MVP 不支持 parallel |
-| `parallel-research.md` | parallel prompt | MVP 不支持 parallel |
-| `parallel-review.md` | parallel prompt | MVP 不支持 parallel |
-
-### 6. `skills/` — 编排 skill
-
-| 文件 | 所属能力 | 确认删除理由 |
-|---|---|---|
-| `skills/pi-subagents/SKILL.md` | 旧编排能力 skill | MVP 不支持 skills 注入；且内容描述 chain/parallel/intercom |
+### 6. `skills/` — 编排 skill ✅ 已删除
 
 ---
 
-## 二、删除内置 agents（旧 agents，替换为 5 个新 agents）
+## 二、删除内置 agents（旧 agents，替换为 5 个新 agents） ✅ 已完成
 
 | 文件 | 所属能力 | 确认删除理由 |
 |---|---|---|
