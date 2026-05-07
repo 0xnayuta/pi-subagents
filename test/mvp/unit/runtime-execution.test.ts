@@ -5,7 +5,7 @@
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { sanitizeOutput, containsSensitiveInfo } from "../../../src/runs/foreground/sanitize.ts";
+import { sanitizeOutput, containsSensitiveInfo } from "../../../src/runtime/foreground/sanitize.ts";
 import { truncateOutput, DEFAULT_MAX_OUTPUT } from "../../../src/shared/types.ts";
 import { checkSubagentDepth, PI_SUBAGENT_DEPTH, PI_SUBAGENT_MAX_DEPTH } from "../../../src/shared/types.ts";
 

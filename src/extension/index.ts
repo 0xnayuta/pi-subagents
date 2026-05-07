@@ -25,7 +25,7 @@ import {
 	checkSubagentDepth,
 	resolveCurrentMaxSubagentDepth,
 } from "../shared/types.ts";
-import { createSubagentExecutor, type SubagentParamsLike } from "../runs/foreground/subagent-executor.ts";
+import { createSubagentExecutor, type SubagentParamsLike } from "../runtime/foreground/subagent-executor.ts";
 import { discoverAgents } from "../agents/agents.ts";
 import { resolveCurrentSessionId } from "../shared/session-identity.ts";
 
