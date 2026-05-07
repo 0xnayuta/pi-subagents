@@ -81,79 +81,24 @@ simple pi subagents
 
 ---
 
-## Phase 1：重建最小类型、配置与结果模型
+## Phase 1：重建最小类型、配置与结果模型 ✅ 已完成
 
 ### 目标
 
 先替换复杂类型，否则后续代码会被旧 `Details`、`SingleResult`、`AsyncStatus`、`ControlEvent` 等类型拖住。
 
-### 主要任务
+### 已完成
 
-1. 重写 `src/shared/types.ts`，只保留 MVP 类型：
+- [x] 重写 `src/shared/types.ts`，只保留 MVP 类型
+- [x] 新增 `src/config/load-config.ts` 配置加载
+- [x] 固定默认值：`enabled: true`, `maxSubagentDepth: 1`, `timeoutMs: 120000`, `allowWriteSubagents: false`
+- [x] 删除旧类型概念：async job/status, progress watcher, chain/parallel mode, intercom payload, control events, worktree/fork context, artifact tree, model fallback
+- [x] 创建配置加载测试 (18 tests)
 
-```ts
-export type BuiltinSubagentName = "explorer" | "researcher" | "reviewer" | "implementer" | "tester";
+### 验收标准 ✅
 
-export interface SubagentToolInput {
-  agent: string;
-  task: string;
-}
-
-export interface AgentDefinition {
-  name: string;
-  description: string;
-  readonly: boolean;
-  tools: string[];
-  prompt: string;
-  source: "builtin" | "user" | "project";
-  filePath: string;
-}
-
-export interface SubagentsConfig {
-  enabled: boolean;
-  maxSubagentDepth: 1;
-  timeoutMs: number;
-  allowWriteSubagents: boolean;
-  subagents: Record<string, { enabled: boolean; readonly: boolean }>;
-}
-
-export type SubagentResult = SubagentSuccessResult | SubagentErrorResult;
-```
-
-2. 新增 `src/config/load-config.ts`：
-   - 读取 `~/.pi/agent/extensions/subagent/config.json`。
-   - 失败时返回默认配置。
-   - 第一版只接受 MVP 字段。
-3. 固定默认值：
-
-```ts
-{
-  enabled: true,
-  maxSubagentDepth: 1,
-  timeoutMs: 120000,
-  allowWriteSubagents: false
-}
-```
-
-4. 删除旧类型中的以下概念：
-   - async job/status
-   - progress watcher
-   - chain/parallel mode
-   - intercom payload
-   - control events
-   - worktree/fork context
-   - artifact tree
-   - model fallback attempts
-
-### 注意事项
-
-- 当前 `DEFAULT_SUBAGENT_MAX_DEPTH` 是 `2`，必须改为 `1` 或不再使用旧常量。
-- 当前错误结果依赖 `AgentToolResult<Details>`，简化后仍可返回 pi tool result，但 `details` 应只包含 `SubagentResult` 或最小对象。
-
-### 验收标准
-
-- `src/shared/types.ts` 中不再出现 `AsyncStatus`、`SubagentRunMode = "parallel" | "chain"`、`Intercom`、`Worktree` 等 MVP 外类型。
-- 配置加载单测覆盖：默认配置、非法 JSON、局部覆盖、disabled agent。
+- [x] `src/shared/types.ts` 中不再出现 `AsyncStatus`、`SubagentRunMode`、`Intercom`、`Worktree` 等 MVP 外类型
+- [x] 配置加载单测覆盖：默认配置、非法 JSON、局部覆盖、disabled agent
 
 ---
 
