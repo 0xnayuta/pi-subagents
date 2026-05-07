@@ -13,6 +13,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
+import * as os from "node:os";
 import type { AgentToolResult } from "@mariozechner/pi-agent-core";
 import { type ExtensionAPI, type ExtensionContext, type ToolDefinition } from "@mariozechner/pi-coding-agent";
 import { SubagentParams } from "./schemas.ts";
@@ -81,9 +82,6 @@ function mergeConfig(base: ExtensionConfig): Required<ExtensionConfig> {
 		allowWriteSubagents: base.allowWriteSubagents ?? false,
 	};
 }
-
-// Need os for homedir
-import * as os from "node:os";
 
 export default function registerSubagentExtension(pi: ExtensionAPI): void {
 	// Prevent child processes from registering this extension
