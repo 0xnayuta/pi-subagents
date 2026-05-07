@@ -1,0 +1,149 @@
+/**
+ * Core execution logic for running subagent
+ * Simplified to only support: foreground single execution
+ */
+
+import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
+import type { Usage } from "../../shared/types.ts";
+import { getPiSpawnCommand } from "../shared/pi-spawn.ts";
+import { attachPostExitStdioGuard, trySignalChild } from "../../shared/post-exit-stdio-guard.ts";
+
+interface RunSyncResult {
+	exitCode: number;
+	output: string;
+	usage?: Usage;
+}
+
+interface RunSyncOptions {
+	signal?: AbortSignal;
+	onUpdate?: (update: { content: unknown }) => void;
+}
+
+export async function runSync(
+	cwd: string,
+	args: string[],
+	options: RunSyncOptions = {},
+): Promise<RunSyncResult> {
+	const { signal, onUpdate } = options;
+	const { command, args: spawnArgs } = getPiSpawnCommand(args);
+
+	return new Promise((resolve) => {
+		let output = "";
+		let stderr = "";
+		let exitCode = 0;
+
+		const child = spawn(command, spawnArgs, {
+			cwd,
+			stdio: ["ignore", "pipe", "pipe"],
+			env: process.env,
+			detached: false,
+		});
+
+		// Set up post-exit guard for Windows
+		const cleanup = attachPostExitStdioGuard(child);
+
+		// Handle signal
+		const handleAbort = () => {
+			trySignalChild(child);
+		};
+
+		signal?.addEventListener("abort", handleAbort);
+
+		// Collect stdout
+		child.stdout?.on("data", (data: Buffer) => {
+			const text = data.toString("utf-8");
+			output += text;
+
+			// Try to parse JSON messages for updates
+			const lines = text.split("\n").filter((line) => line.trim());
+			for (const line of lines) {
+				try {
+					const parsed = JSON.parse(line);
+					if (parsed.type === "progress" || parsed.type === "update") {
+						onUpdate?.({ content: parsed });
+					}
+				} catch {
+					// Not JSON, ignore
+				}
+			}
+		});
+
+		// Collect stderr
+		child.stderr?.on("data", (data: Buffer) => {
+			stderr += data.toString("utf-8");
+		});
+
+		child.on("close", (code) => {
+			signal?.removeEventListener("abort", handleAbort);
+			cleanup();
+
+			exitCode = code ?? (stderr.includes("error") ? 1 : 0);
+
+			// Append stderr to output if there's an error
+			if (exitCode !== 0 && stderr.trim()) {
+				output += `\n${stderr}`;
+			}
+
+			resolve({
+				exitCode,
+				output: output.trim(),
+			});
+		});
+
+		child.on("error", (error) => {
+			signal?.removeEventListener("abort", handleAbort);
+			cleanup();
+
+			resolve({
+				exitCode: 1,
+				output: `Failed to spawn pi: ${error.message}`,
+			});
+		});
+	});
+}
+
+/**
+ * Simple child process spawning for pi
+ */
+export function spawnPi(
+	cwd: string,
+	args: string[],
+	options: {
+		signal?: AbortSignal;
+		onStdout?: (data: string) => void;
+		onStderr?: (data: string) => void;
+		onClose?: (code: number | null) => void;
+	} = {},
+): ReturnType<typeof spawn> {
+	const { command, args: spawnArgs } = getPiSpawnCommand(args);
+
+	const child = spawn(command, spawnArgs, {
+		cwd,
+		stdio: ["ignore", "pipe", "pipe"],
+		env: process.env,
+		detached: false,
+	});
+
+	const cleanup = attachPostExitStdioGuard(child);
+
+	options.signal?.addEventListener("abort", () => {
+		trySignalChild(child);
+	});
+
+	child.stdout?.on("data", (data: Buffer) => {
+		options.onStdout?.(data.toString("utf-8"));
+	});
+
+	child.stderr?.on("data", (data: Buffer) => {
+		options.onStderr?.(data.toString("utf-8"));
+	});
+
+	child.on("close", (code) => {
+		options.signal?.removeEventListener("abort", () => trySignalChild(child));
+		cleanup();
+		options.onClose?.(code);
+	});
+
+	return child;
+}

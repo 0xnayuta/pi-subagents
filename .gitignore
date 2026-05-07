@@ -1,4 +1,41 @@
-.pi/todos/
-.DS_Store
-AGENTS.md
+# Dependencies
 node_modules/
+
+# Build output
+dist/
+build/
+
+# Coverage
+coverage/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# pi-subagents specific
+.fallow/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/

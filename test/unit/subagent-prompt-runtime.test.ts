@@ -2,18 +2,16 @@ import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 import registerSubagentPromptRuntime, {
 	CHILD_SUBAGENT_BOUNDARY_INSTRUCTIONS,
-	SUBAGENT_INTERCOM_SESSION_NAME_ENV,
 	rewriteSubagentPrompt,
 	stripInheritedSkills,
 	stripParentOnlySubagentMessages,
 	stripProjectContext,
 	stripSubagentOrchestrationSkill,
-} from "../../src/runs/shared/subagent-prompt-runtime.ts";
+} from "../../src/runtime/shared/subagent-prompt-runtime.ts";
 
 const envSnapshot = {
 	PI_SUBAGENT_INHERIT_PROJECT_CONTEXT: process.env.PI_SUBAGENT_INHERIT_PROJECT_CONTEXT,
 	PI_SUBAGENT_INHERIT_SKILLS: process.env.PI_SUBAGENT_INHERIT_SKILLS,
-	PI_SUBAGENT_INTERCOM_SESSION_NAME: process.env.PI_SUBAGENT_INTERCOM_SESSION_NAME,
 };
 
 const SKILLS_SECTION = "\n\nThe following skills provide specialized instructions for specific tasks.\nUse the read tool to load a skill's file when the task matches its description.\nWhen a skill file references a relative path, resolve it against the skill directory (parent of SKILL.md / dirname of the path) and use that absolute path in tool commands.\n\n<available_skills>\n  <skill>\n    <name>safe-bash</name>\n    <description>desc</description>\n    <location>/tmp/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>pi-subagents</name>\n    <description>delegate to subagents</description>\n    <location>/tmp/pi-subagents/SKILL.md</location>\n  </skill>\n</available_skills>";
@@ -38,8 +36,6 @@ afterEach(() => {
 	else process.env.PI_SUBAGENT_INHERIT_PROJECT_CONTEXT = envSnapshot.PI_SUBAGENT_INHERIT_PROJECT_CONTEXT;
 	if (envSnapshot.PI_SUBAGENT_INHERIT_SKILLS === undefined) delete process.env.PI_SUBAGENT_INHERIT_SKILLS;
 	else process.env.PI_SUBAGENT_INHERIT_SKILLS = envSnapshot.PI_SUBAGENT_INHERIT_SKILLS;
-	if (envSnapshot.PI_SUBAGENT_INTERCOM_SESSION_NAME === undefined) delete process.env.PI_SUBAGENT_INTERCOM_SESSION_NAME;
-	else process.env.PI_SUBAGENT_INTERCOM_SESSION_NAME = envSnapshot.PI_SUBAGENT_INTERCOM_SESSION_NAME;
 });
 
 describe("subagent prompt runtime", () => {
@@ -113,12 +109,11 @@ describe("subagent prompt runtime", () => {
 	it("strips parent-only subagent custom messages from forked child context", () => {
 		const user = { role: "user", content: "Task" };
 		const instruction = { role: "custom", customType: "subagent-orchestration-instructions", content: "Subagent orchestration is enabled." };
-		const slashResult = { role: "custom", customType: "subagent-slash-result", content: "## Orchestration" };
 		const notify = { role: "custom", customType: "subagent-notify", content: "Background task completed" };
 		const control = { role: "custom", customType: "subagent_control_notice", content: "needs attention" };
 		const otherCustom = { role: "custom", customType: "other", content: "keep" };
 
-		assert.deepEqual(stripParentOnlySubagentMessages([user, instruction, slashResult, notify, control, otherCustom]), [user, otherCustom]);
+		assert.deepEqual(stripParentOnlySubagentMessages([user, instruction, notify, control, otherCustom]), [user, otherCustom]);
 	});
 
 	it("strips prior parent subagent tool calls and results from forked child context", () => {
@@ -154,25 +149,6 @@ describe("subagent prompt runtime", () => {
 		);
 	});
 
-	it("sets the child intercom session name from env during agent startup", async () => {
-		let sessionName: string | undefined;
-		let beforeAgentStart: ((event: { systemPrompt: string }) => Promise<{ systemPrompt: string } | undefined>) | undefined;
-		process.env[SUBAGENT_INTERCOM_SESSION_NAME_ENV] = "subagent-worker-78f659a3";
-
-		registerSubagentPromptRuntime({
-			on(event: string, handler: (payload: { systemPrompt: string }) => Promise<{ systemPrompt: string } | undefined>) {
-				if (event === "before_agent_start") beforeAgentStart = handler;
-			},
-			setSessionName(name: string) {
-				sessionName = name;
-			},
-		} as { on(event: string, handler: (payload: { systemPrompt: string }) => Promise<{ systemPrompt: string } | undefined>): void; setSessionName(name: string): void });
-
-		await beforeAgentStart?.({ systemPrompt: BASE_PROMPT });
-
-		assert.equal(sessionName, "subagent-worker-78f659a3");
-	});
-
 	it("rewrites the final child-visible prompt through before_agent_start", async () => {
 		let beforeAgentStart: ((event: { systemPrompt: string }) => Promise<{ systemPrompt: string } | undefined>) | undefined;
 		registerSubagentPromptRuntime({
@@ -203,12 +179,11 @@ describe("subagent prompt runtime", () => {
 		const priorParentTurn = { role: "user", content: "Earlier we said planner → worker → reviewers → worker." };
 		const currentTask = { role: "user", content: "Now implement only the assigned fix." };
 		const instruction = { role: "custom", customType: "subagent-orchestration-instructions", content: "Subagent orchestration is enabled." };
-		const slashResult = { role: "custom", customType: "subagent-slash-result", content: "## Orchestration" };
 		const subagentResult = { role: "toolResult", toolName: "subagent", content: "subagent results" };
 		const subagentCall = { role: "assistant", content: [{ type: "toolCall", name: "subagent", input: { agent: "worker" } }] };
 		const otherCustom = { role: "custom", customType: "other", content: "keep" };
 
-		assert.deepEqual(contextHandler?.({ messages: [priorParentTurn, instruction, slashResult, subagentCall, subagentResult, otherCustom, currentTask] }), {
+		assert.deepEqual(contextHandler?.({ messages: [priorParentTurn, instruction, subagentCall, subagentResult, otherCustom, currentTask] }), {
 			messages: [priorParentTurn, otherCustom, currentTask],
 		});
 	});
