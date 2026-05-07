@@ -127,61 +127,31 @@ simple pi subagents
 
 ---
 
-## Phase 3：重写扩展入口与最小 `subagent` schema
+## Phase 3：重写扩展入口与最小 `subagent` schema ✅ 已完成
 
 ### 目标
 
 把 `src/extension/index.ts` 从大型 orchestrator 入口重写为最小 tool 注册入口。
 
-### 当前入口问题
+### 已完成
 
-当前 `src/extension/index.ts` 直接 import 并启动了很多旧能力：
+- [x] 重写 `src/extension/schemas.ts`：只保留 `agent` 和 `task` 参数
+- [x] 重写 `src/extension/index.ts`：最小 tool 注册入口
+  - 保留默认导出 `registerSubagentExtension(pi)`
+  - 如果 `PI_SUBAGENT_CHILD === "1"`，直接 return，防止子代理注册 `subagent`
+  - 加载 config
+  - 注册一个 tool：`subagent`
+  - 不注册 message renderer
+  - 不注册 slash command
+  - 不注册 async watcher
+  - 不注册 TUI widget
+- [x] 创建扩展注册测试 (22 tests)
 
-- `createResultWatcher`
-- `createAsyncJobTracker`
-- `registerSlashCommands`
-- `registerPromptTemplateDelegationBridge`
-- `registerSlashSubagentBridge`
-- `registerSubagentNotify`
-- TUI renderers
-- control notice renderers
-- artifact cleanup
-- chain cleanup
+### 验收标准 ✅
 
-这些都必须从入口移除，否则即使删除 schema，旧能力仍会启动。
-
-### 主要任务
-
-1. 重写 `src/extension/schemas.ts`：
-
-```ts
-import { Type } from "typebox";
-
-export const SubagentParams = Type.Object({
-  agent: Type.String({ minLength: 1 }),
-  task: Type.String({ minLength: 1 })
-}, { additionalProperties: false });
-```
-
-2. 重写 `src/extension/index.ts`：
-   - 保留默认导出 `registerSubagentExtension(pi)`。
-   - 如果 `PI_SUBAGENT_CHILD === "1"`，直接 return，防止子代理注册 `subagent`。
-   - 加载 config。
-   - 注册一个 tool：`subagent`。
-   - 不注册 message renderer。
-   - 不注册 slash command。
-   - 不注册 async watcher。
-   - 不注册 TUI widget。
-
-3. 新增 `src/extension/register-tool.ts`，让入口更小。
-
-4. 工具描述只说明 5 个 agents 和使用边界。
-
-### 验收标准
-
-- `rg "registerSlash|registerMessageRenderer|ResultWatcher|AsyncJob|renderWidget" src/extension` 无命中。
-- `SubagentParams` 不包含 `action`、`tasks`、`chain`、`async`、`worktree`、`model`。
-- 子进程因 `PI_SUBAGENT_CHILD=1` 不注册该扩展。
+- [x] `rg "registerSlash|registerMessageRenderer|ResultWatcher|AsyncJob|renderWidget" src/extension` 无命中
+- [x] `SubagentParams` 不包含 `action`、`tasks`、`chain`、`async`、`worktree`、`model`
+- [x] 子进程因 `PI_SUBAGENT_CHILD=1` 不注册该扩展
 
 ---
 

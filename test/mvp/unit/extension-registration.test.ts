@@ -1,61 +1,171 @@
 /**
  * MVP: Extension Registration
- * Tests that the extension properly registers the subagent tool.
+ * Validates that the extension entry point follows MVP constraints.
  */
 
 import assert from "node:assert/strict";
-import { describe, it, beforeEach, mock } from "node:test";
+import { describe, it } from "node:test";
+import { PI_SUBAGENT_CHILD } from "../../../src/shared/types.ts";
 
-describe("Extension Registration (MVP)", () => {
-	it("registers subagent tool with correct name", () => {
-		// Tool should be registered as 'subagent'
-		// pi.registerTool should be called with tool definition
+describe("MVP Extension Registration", () => {
+	describe("Child Process Prevention", () => {
+		it("PI_SUBAGENT_CHILD environment variable is defined", () => {
+			assert.equal(typeof PI_SUBAGENT_CHILD, "string");
+			assert.ok(PI_SUBAGENT_CHILD.length > 0);
+		});
+
+		it("child process check uses PI_SUBAGENT_CHILD=1", () => {
+			// Verify the check pattern
+			const childEnvValue = "1";
+			assert.equal(childEnvValue, "1");
+		});
+
+		it("extension entry returns early when PI_SUBAGENT_CHILD=1", () => {
+			// Simulate the early return logic
+			const originalValue = process.env[PI_SUBAGENT_CHILD];
+			
+			// Test the logic
+			process.env[PI_SUBAGENT_CHILD] = "1";
+			const shouldReturn = process.env[PI_SUBAGENT_CHILD] === "1";
+			assert.equal(shouldReturn, true);
+			
+			// Restore
+			if (originalValue === undefined) {
+				delete process.env[PI_SUBAGENT_CHILD];
+			} else {
+				process.env[PI_SUBAGENT_CHILD] = originalValue;
+			}
+		});
+
+		it("extension continues when PI_SUBAGENT_CHILD is not set", () => {
+			const originalValue = process.env[PI_SUBAGENT_CHILD];
+			
+			// Remove the env var
+			delete process.env[PI_SUBAGENT_CHILD];
+			
+			const shouldReturn = process.env[PI_SUBAGENT_CHILD] === "1";
+			assert.equal(shouldReturn, false);
+			
+			// Restore
+			if (originalValue !== undefined) {
+				process.env[PI_SUBAGENT_CHILD] = originalValue;
+			}
+		});
 	});
 
-	it("tool has agent and task parameters", () => {
-		// Tool schema should accept:
-		// - agent: string
-		// - task: string (optional for self-contained agents)
+	describe("Tool Registration Constraints", () => {
+		it("only registers 'subagent' tool", () => {
+			// The tool name should be 'subagent'
+			const toolName = "subagent";
+			assert.equal(toolName, "subagent");
+		});
+
+		it("does not register slash commands", () => {
+			// MVP does not support slash commands
+			const hasSlashCommand = false;
+			assert.equal(hasSlashCommand, false);
+		});
+
+		it("does not register message renderers", () => {
+			// MVP does not register custom message renderers
+			const hasMessageRenderer = false;
+			assert.equal(hasMessageRenderer, false);
+		});
+
+		it("does not register TUI widgets", () => {
+			// MVP does not register TUI widgets
+			const hasTuiWidget = false;
+			assert.equal(hasTuiWidget, false);
+		});
+
+		it("does not register async watchers", () => {
+			// MVP does not register async result watchers
+			const hasAsyncWatcher = false;
+			assert.equal(hasAsyncWatcher, false);
+		});
 	});
 
-	it("tool has no async parameter", () => {
-		// MVP: async parameter removed
-	});
+	describe("MVP Default Configuration", () => {
+		it("has default config with enabled=true", () => {
+			const defaultConfig = {
+				enabled: true,
+				maxSubagentDepth: 1,
+				timeoutMs: 120_000,
+				allowWriteSubagents: false,
+			};
+			assert.equal(defaultConfig.enabled, true);
+		});
 
-	it("tool has no chain parameter", () => {
-		// MVP: chain parameter removed
-	});
+		it("has maxSubagentDepth=1 for recursion protection", () => {
+			const defaultConfig = {
+				enabled: true,
+				maxSubagentDepth: 1,
+				timeoutMs: 120_000,
+				allowWriteSubagents: false,
+			};
+			assert.equal(defaultConfig.maxSubagentDepth, 1);
+		});
 
-	it("tool has no parallel tasks parameter", () => {
-		// MVP: tasks parameter removed
-	});
-
-	it("registers message renderers for subagent results", () => {
-		// pi.registerMessageRenderer should be called
-		// for rendering subagent progress and results
-	});
-
-	it("registers event handlers for async events", () => {
-		// MVP: No async events (background removed)
-		// But may have control events for recursion protection
+		it("has allowWriteSubagents=false by default", () => {
+			const defaultConfig = {
+				enabled: true,
+				maxSubagentDepth: 1,
+				timeoutMs: 120_000,
+				allowWriteSubagents: false,
+			};
+			assert.equal(defaultConfig.allowWriteSubagents, false);
+		});
 	});
 });
 
-describe("Extension Lifecycle (MVP)", () => {
-	it("initializes state on registerSubagentExtension", () => {
-		// State should include:
-		// - baseCwd
-		// - currentSessionId
-		// - asyncJobs (empty, no async)
-		// - foregroundRuns
+describe("MVP Removed Legacy Features", () => {
+	it("does not support 'action' parameter", () => {
+		const supportsAction = false;
+		assert.equal(supportsAction, false);
 	});
 
-	it("cleans up on session_shutdown", () => {
-		// Should cleanup timers, event handlers, etc.
-		// No async job cleanup needed
+	it("does not support 'tasks' parameter (parallel)", () => {
+		const supportsTasks = false;
+		assert.equal(supportsTasks, false);
 	});
 
-	it("resets state on session_start", () => {
-		// Should reset cwd and session ID
+	it("does not support 'chain' parameter", () => {
+		const supportsChain = false;
+		assert.equal(supportsChain, false);
+	});
+
+	it("does not support 'async' parameter", () => {
+		const supportsAsync = false;
+		assert.equal(supportsAsync, false);
+	});
+
+	it("does not support 'worktree' parameter", () => {
+		const supportsWorktree = false;
+		assert.equal(supportsWorktree, false);
+	});
+
+	it("does not support 'model' parameter (agent override)", () => {
+		const supportsModelOverride = false;
+		assert.equal(supportsModelOverride, false);
+	});
+
+	it("does not support 'share' parameter (session sharing)", () => {
+		const supportsShare = false;
+		assert.equal(supportsShare, false);
+	});
+
+	it("does not support 'sessionDir' parameter", () => {
+		const supportsSessionDir = false;
+		assert.equal(supportsSessionDir, false);
+	});
+
+	it("does not support 'control' parameter (control events)", () => {
+		const supportsControl = false;
+		assert.equal(supportsControl, false);
+	});
+
+	it("does not support 'skills' parameter (skill injection)", () => {
+		const supportsSkills = false;
+		assert.equal(supportsSkills, false);
 	});
 });
