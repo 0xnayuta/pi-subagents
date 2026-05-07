@@ -17,6 +17,7 @@ interface RunSyncResult {
 
 interface RunSyncOptions {
 	signal?: AbortSignal;
+	env?: Record<string, string | undefined>;
 	onUpdate?: (update: { content: unknown }) => void;
 }
 
@@ -25,7 +26,7 @@ export async function runSync(
 	args: string[],
 	options: RunSyncOptions = {},
 ): Promise<RunSyncResult> {
-	const { signal, onUpdate } = options;
+	const { signal, env, onUpdate } = options;
 	const { command, args: spawnArgs } = getPiSpawnCommand(args);
 
 	return new Promise((resolve) => {
@@ -36,7 +37,7 @@ export async function runSync(
 		const child = spawn(command, spawnArgs, {
 			cwd,
 			stdio: ["ignore", "pipe", "pipe"],
-			env: process.env,
+			env: { ...process.env, ...env },
 			detached: false,
 		});
 

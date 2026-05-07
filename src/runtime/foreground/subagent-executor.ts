@@ -9,7 +9,7 @@ import { randomUUID } from "node:crypto";
 import type { AgentToolResult } from "@mariozechner/pi-agent-core";
 import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
 import { runSync } from "./execution.ts";
-import { buildSubagentChildArgs } from "../shared/pi-args.ts";
+import { buildSubagentChildArgs, cleanupTempDir } from "../shared/pi-args.ts";
 import { buildChildPrompt } from "../shared/subagent-prompt-runtime.ts";
 import { collectOutput } from "./collect-output.ts";
 import { sanitizeOutput } from "./sanitize.ts";
@@ -58,16 +58,17 @@ function loadAgent(agentName: string, cwd: string, deps: ExecutorDeps): AgentToo
 
 function filterToolsForReadonly(agent: AgentConfig, config: Required<ExtensionConfig>): string[] {
 	const allowedTools = ["read", "grep", "find", "ls", "bash", "web_search", "fetch_content", "get_search_content"];
+	const configuredTools = agent.tools ?? [];
 
 	if (agent.readonly) {
-		return agent.tools.filter((tool) => allowedTools.includes(tool));
+		return configuredTools.filter((tool) => allowedTools.includes(tool));
 	}
 
 	if (!config.allowWriteSubagents) {
-		return agent.tools.filter((tool) => allowedTools.includes(tool));
+		return configuredTools.filter((tool) => allowedTools.includes(tool));
 	}
 
-	return agent.tools;
+	return configuredTools;
 }
 
 export function createSubagentExecutor(deps: ExecutorDeps): {
@@ -169,6 +170,7 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 		const systemPrompt = buildChildPrompt({
 			agentName: agent.name,
 			agentDescription: agent.description,
+			agentSystemPrompt: agent.systemPrompt,
 			agentTools: tools,
 			task: params.task,
 			parentMessages: [],
@@ -208,6 +210,8 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 			systemPrompt,
 			cwd,
 			sessionFile,
+			model: agent.model,
+			tools,
 			env: childEnv,
 		});
 
@@ -228,8 +232,9 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 		let usage: Usage | undefined;
 
 		try {
-			const result = await runSync(cwd, piArgs, {
+			const result = await runSync(cwd, piArgs.args, {
 				signal: combinedSignal,
+				env: piArgs.env,
 				onUpdate: (update) => {
 					onUpdate?.({
 						content: update.content,
@@ -257,6 +262,8 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 				const message = error instanceof Error ? error.message : String(error);
 				output = `Subagent execution failed: ${message}`;
 			}
+		} finally {
+			cleanupTempDir(piArgs.tempDir);
 		}
 
 		// Determine error code if execution failed

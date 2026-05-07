@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 import registerSubagentPromptRuntime, {
 	CHILD_SUBAGENT_BOUNDARY_INSTRUCTIONS,
+	buildChildPrompt,
 	rewriteSubagentPrompt,
 	stripInheritedSkills,
 	stripParentOnlySubagentMessages,
@@ -39,6 +40,25 @@ afterEach(() => {
 });
 
 describe("subagent prompt runtime", () => {
+	it("exports and builds the foreground child prompt used by the executor", () => {
+		const prompt = buildChildPrompt({
+			agentName: "explorer",
+			agentSystemPrompt: "You are a delegated code explorer subagent.",
+			agentTools: ["read", "grep"],
+			task: "Find authentication code",
+			childDepth: 1,
+			maxDepth: 1,
+			isReadonly: true,
+		});
+
+		assert.ok(prompt.startsWith(CHILD_SUBAGENT_BOUNDARY_INSTRUCTIONS));
+		assert.ok(prompt.includes("# Agent: explorer"));
+		assert.ok(prompt.includes("You are a delegated code explorer subagent."));
+		assert.ok(prompt.includes("- read"));
+		assert.ok(prompt.includes("Find authentication code"));
+		assert.ok(prompt.includes("You are readonly"));
+	});
+
 	it("strips only the project context block", () => {
 		const rewritten = stripProjectContext(BASE_PROMPT);
 		assert.ok(!rewritten.includes("# Project Context"));

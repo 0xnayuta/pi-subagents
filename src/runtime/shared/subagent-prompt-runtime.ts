@@ -23,10 +23,61 @@ const PROJECT_CONTEXT_HEADER = "\n\n# Project Context\n\nProject-specific instru
 const SKILLS_HEADER = "\n\nThe following skills provide specialized instructions for specific tasks.";
 const DATE_HEADER = "\nCurrent date:";
 
+export interface BuildChildPromptOptions {
+	agentName: string;
+	agentDescription?: string;
+	agentSystemPrompt?: string;
+	agentTools?: string[];
+	task: string;
+	parentMessages?: unknown[];
+	childDepth?: number;
+	maxDepth?: number;
+	isReadonly?: boolean;
+}
+
 function readBooleanEnv(name: string): boolean | undefined {
 	const value = process.env[name];
 	if (value === undefined) return undefined;
 	return value !== "0";
+}
+
+function formatToolList(tools: string[] | undefined): string {
+	return tools?.length ? tools.map((tool) => `- ${tool}`).join("\n") : "- No tools explicitly configured";
+}
+
+/**
+ * Build the system prompt used by a foreground child subagent process.
+ *
+ * The executor imports this function directly. Keep it exported from this
+ * runtime module so packaged extensions do not fail at runtime with
+ * `buildChildPrompt is not a function`.
+ */
+export function buildChildPrompt(options: BuildChildPromptOptions): string {
+	const rolePrompt = options.agentSystemPrompt?.trim()
+		|| options.agentDescription?.trim()
+		|| `You are the ${options.agentName} subagent.`;
+	const readonlyInstruction = options.isReadonly
+		? "You are readonly: inspect and report only. Do not edit, write, or modify files."
+		: "You may modify files only when the delegated task explicitly requires it and your available tools permit it.";
+	const depthInstruction = options.childDepth !== undefined && options.maxDepth !== undefined
+		? `Subagent depth: ${options.childDepth}/${options.maxDepth}. Do not launch or delegate to additional subagents.`
+		: "Do not launch or delegate to additional subagents.";
+
+	return [
+		CHILD_SUBAGENT_BOUNDARY_INSTRUCTIONS,
+		`# Agent: ${options.agentName}`,
+		rolePrompt,
+		"# Operating constraints",
+		readonlyInstruction,
+		depthInstruction,
+		"Use only the tools made available to this child process.",
+		"# Available tools",
+		formatToolList(options.agentTools),
+		"# Delegated task",
+		options.task.trim(),
+		"# Response requirements",
+		"Return a concise, focused result for the parent session. Include relevant file paths when discussing code.",
+	].filter((part) => part.length > 0).join("\n\n");
 }
 
 function findSectionEnd(prompt: string, startIndex: number, nextHeaders: string[]): number {
