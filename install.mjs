@@ -22,7 +22,7 @@ const isHelp = args.includes("--help") || args.includes("-h");
 
 if (isHelp) {
 	console.log(`
-pi-subagents - Pi extension for delegating tasks to subagents
+pi-subagents - Lightweight Pi extension for delegating tasks to focused readonly agents
 
 Usage:
   npx pi-subagents          Install the extension
@@ -86,7 +86,7 @@ if (fs.existsSync(EXTENSION_DIR)) {
 
 console.log(`
 The extension is now available in pi. Tool added:
-  • subagent - Delegate tasks to agents and inspect run status
+  • subagent - Delegate tasks to focused readonly agents
 
 Documentation: ${EXTENSION_DIR}/README.md
 `);

@@ -1,21 +1,17 @@
 # 配置参考
 
-## 默认配置
+## 配置文件位置
+
+`~/.pi/agent/extensions/subagent/config.json`
+
+## MVP 配置字段
 
 ```json
 {
   "enabled": true,
   "maxSubagentDepth": 1,
   "timeoutMs": 120000,
-  "allowWriteSubagents": false,
-  "allowBashInReadonlySubagents": false,
-  "subagents": {
-    "explorer": { "enabled": true, "readonly": true },
-    "researcher": { "enabled": true, "readonly": true },
-    "reviewer": { "enabled": true, "readonly": true },
-    "implementer": { "enabled": true, "readonly": true },
-    "tester": { "enabled": true, "readonly": true }
-  }
+  "allowWriteSubagents": false
 }
 ```
 
@@ -26,18 +22,18 @@
 | `enabled` | boolean | `true` | 是否启用 subagent 工具 |
 | `maxSubagentDepth` | number | `1` | 子代理递归深度。固定为 1，子代理不能再调子代理 |
 | `timeoutMs` | number | `120000` | 子代理执行超时（毫秒） |
-| `allowWriteSubagents` | boolean | `false` | 是否允许子代理写文件。第一版默认 false |
-| `allowBashInReadonlySubagents` | boolean | `false` | 是否允许 readonly agents 使用 bash。第一版默认 false |
-| `subagents` | object | 见上 | 每个 agent 的启用和权限配置 |
+| `allowWriteSubagents` | boolean | `false` | 是否允许子代理写文件。MVP 默认 false |
 
-## 约束
+## MVP 不支持的配置
 
-- 第一版固定 `maxSubagentDepth = 1`
-- 默认继承当前 pi 模型
-- 第一版不实现 fallback model chain
-- 第一版不支持 per-agent model override
-- 第一版不实现 skills 注入
-- 第一版不实现 `/subagents` 命令
+以下配置字段在 MVP 中会被忽略：
+
+- `asyncByDefault` - background jobs 不支持
+- `parallel` - parallel execution 不支持
+- `intercomBridge` - intercom 不支持
+- `worktreeSetupHook` - worktree 不支持
+- `agentOverrides` - per-agent model/skill override 不支持
+- `defaultSessionDir` - 复杂 session 管理不支持
 
 ## readonly agents 允许的工具
 

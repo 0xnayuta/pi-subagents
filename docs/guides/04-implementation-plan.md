@@ -275,40 +275,25 @@ validate input
 
 ---
 
-## Phase 8:README、参考文档与安装器更新
+## Phase 8:README、参考文档与安装器更新 ✅ 已完成
 
 ### 目标
 
 让用户看到的能力与代码一致。
 
-### 必改文件
+### 已完成
 
-```text
-README.md
-CHANGELOG.md
-install.mjs
-docs/README.md
-docs/reference/subagent-tool.md
-docs/reference/agent-definition.md
-docs/reference/configuration.md
-docs/reference/result-schema.md
-```
+- [x] README.md - 更新为轻量定位，明确不支持的功能
+- [x] install.mjs - 更新文案，移除 status/management 暗示
+- [x] docs/reference/configuration.md - 更新为 MVP 配置字段
+- [x] docs/reference/result-schema.md - 更新为 MVP 结果 Schema
+- [x] docs/reference/subagent-tool.md - 验证正确
+- [x] docs/reference/agent-definition.md - 验证正确
 
-### 注意事项
+### 验收标准 ✅
 
-- `install.mjs` 当前文案仍是 "Delegate tasks to agents and inspect run status",需要移除 status/management 暗示。
-- README 不应再提 chain、parallel、async、TUI clarification。
-- agent definition 文档要使用当前 parser 可接受的逗号 frontmatter,除非 Phase 2 已实现 YAML array parser。
-
-### 验收标准
-
-- README 示例只有:
-
-```ts
-subagent({ agent: "explorer", task: "Find where auth is implemented" })
-```
-
-- 文档明确第一版不支持:background、chain、parallel、intercom、worktree、slash workflow、TUI widget。
+- [x] README 示例只有 `subagent({ agent: "explorer", task: "..." })`
+- [x] 文档明确第一版不支持:background、chain、parallel、intercom、worktree、slash workflow、TUI widget
 
 ---
 
