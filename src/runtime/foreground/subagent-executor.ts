@@ -265,9 +265,9 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 			errorCode = MVP_ERROR_CODES.SUBAGENT_TIMEOUT;
 		} else if (exitCode !== 0) {
 			errorCode = MVP_ERROR_CODES.SUBAGENT_FAILED;
-		} finally {
-			clearTimeout(timeoutHandle);
 		}
+
+		clearTimeout(timeoutHandle);
 
 		// Sanitize output
 		const sanitizedOutput = sanitizeOutput(output);
