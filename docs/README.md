@@ -6,10 +6,11 @@
 
 1. [目标与范围](./guides/01-goals-and-scope.md)
 2. [架构总览](./guides/02-architecture.md)
-3. [实施路线](./guides/03-implementation-plan.md)
-4. [安全模型](./guides/04-security-model.md)
-5. [测试策略](./guides/05-testing.md)
-6. [删除清单审计](./guides/06-deletion-audit.md)
+3. [扩展 API 参考](./guides/03-extension-api.md)
+4. [实施路线](./guides/04-implementation-plan.md)
+5. [安全模型](./guides/05-security-model.md)
+6. [测试策略](./guides/06-testing.md)
+7. [删除清单审计](./guides/07-deletion-audit.md)
 
 ## 参考文档
 
