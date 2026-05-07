@@ -26,5 +26,5 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Unit tests
         run: pnpm test
-      - name: Integration tests
-        run: pnpm test:integration
+      - name: MVP tests
+        run: pnpm test:mvp
