@@ -2,7 +2,6 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 
 const SUBAGENT_INHERIT_PROJECT_CONTEXT_ENV = "PI_SUBAGENT_INHERIT_PROJECT_CONTEXT";
 const SUBAGENT_INHERIT_SKILLS_ENV = "PI_SUBAGENT_INHERIT_SKILLS";
-export const SUBAGENT_INTERCOM_SESSION_NAME_ENV = "PI_SUBAGENT_INTERCOM_SESSION_NAME";
 
 export const CHILD_SUBAGENT_BOUNDARY_INSTRUCTIONS = [
 	"You are a child subagent, not the parent orchestrator.",
@@ -14,7 +13,6 @@ export const CHILD_SUBAGENT_BOUNDARY_INSTRUCTIONS = [
 
 const PARENT_ONLY_CUSTOM_MESSAGE_TYPES = new Set([
 	"subagent-orchestration-instructions",
-	"subagent-slash-result",
 	"subagent-notify",
 	"subagent_control_notice",
 	"subagent-control",
@@ -132,11 +130,6 @@ export default function registerSubagentPromptRuntime(pi: ExtensionAPI): void {
 	});
 
 	pi.on("before_agent_start", async (event) => {
-		const intercomSessionName = process.env[SUBAGENT_INTERCOM_SESSION_NAME_ENV]?.trim();
-		if (intercomSessionName && typeof pi.setSessionName === "function") {
-			pi.setSessionName(intercomSessionName);
-		}
-
 		const inheritProjectContext = readBooleanEnv(SUBAGENT_INHERIT_PROJECT_CONTEXT_ENV);
 		const inheritSkills = readBooleanEnv(SUBAGENT_INHERIT_SKILLS_ENV);
 		if (inheritProjectContext === undefined && inheritSkills === undefined) return;

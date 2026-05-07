@@ -7,7 +7,7 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { TEMP_ROOT_DIR } from "./types.ts";
 
-// Cleanup old chain directories
+// Cleanup old subagent session directories
 export function cleanupOldChainDirs(): void {
 	try {
 		if (!fs.existsSync(TEMP_ROOT_DIR)) return;

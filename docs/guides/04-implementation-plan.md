@@ -219,64 +219,25 @@ validate input
 
 ---
 
-## Phase 6:删除高级模块并修复包元数据
+## Phase 6:删除高级模块并修复包元数据 ✅ 已完成
 
 ### 目标
 
 不是"隐藏"高级功能,而是移除维护面。
 
-### 删除目录
+### 已完成
 
-```text
-src/runs/background/
-src/intercom/
-src/slash/
-src/tui/
-prompts/
-```
+- [x] 删除目录: src/runs/background/, src/intercom/, src/slash/, src/tui/, prompts/, skills/
+- [x] 删除文件: chain-clarify.ts, chain-execution.ts, parallel-utils.ts, model-fallback.ts, worktree.ts, fork-context.ts, artifacts.ts, jsonl-writer.ts, model-info.ts, session-tokens.ts, status-format.ts, chain-serializer.ts, agent-management.ts, run-history.ts, single-output.ts
+- [x] 更新 package.json: 描述、files、pi 配置与 MVP 一致
+- [x] 清理 subagent-prompt-runtime.ts 中的 intercom 残留代码
+- [x] 更新旧测试以移除 intercom/slash 相关测试
 
-`prompts/` 当前全部是 parallel/chain 相关模板,MVP 不需要。
+### 验收标准 ✅
 
-### 删除或裁剪文件
-
-```text
-src/runs/foreground/chain-clarify.ts
-src/runs/foreground/chain-execution.ts
-src/runs/shared/parallel-utils.ts
-src/runs/shared/model-fallback.ts
-src/runs/shared/worktree.ts
-src/shared/fork-context.ts
-src/shared/artifacts.ts
-src/shared/jsonl-writer.ts
-src/shared/model-info.ts
-src/shared/session-tokens.ts
-src/shared/status-format.ts
-src/agents/chain-serializer.ts
-src/agents/agent-management.ts
-```
-
-### 更新 `package.json`
-
-当前 package 描述仍是:
-
-```text
-Pi extension for delegating tasks to subagents with chains, parallel execution, and TUI clarification
-```
-
-必须改为轻量定位。
-
-同时检查依赖:
-
-- `typebox` 可保留,用于 tool schema。
-- `@mariozechner/pi-tui` 如果不再使用,应从 peer/dev dependencies 移除。
-- `prompts/**/*` 应从 `files` 与 `pi.prompts` 移除。
-- `skills` 是否保留要单独决定;MVP 不依赖 `pi-subagents` skill 可删除。
-
-### 验收标准
-
-- `rg "chain|parallel|background|intercom|worktree|slash|tui" src` 不命中可执行路径。少量文档字符串或测试 fixture 也应尽量清理。
-- `pnpm test` 使用新测试集通过。
-- package 描述、files、pi 配置与 MVP 一致。
+- [x] `rg "chain|parallel|background|intercom|worktree|slash|tui" src` 仅剩误报 (getuid 包含 uid)
+- [x] `pnpm test` 使用新测试集通过 (158 MVP + 26 unit)
+- [x] package 描述、files、pi 配置与 MVP 一致
 
 ---
 
