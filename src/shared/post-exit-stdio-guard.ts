@@ -23,11 +23,15 @@ export function trySignalChild(child: ChildWithKill, signal: NodeJS.Signals): bo
 	}
 }
 
+const DEFAULT_IDLE_MS = 5000;
+const DEFAULT_HARD_MS = 10000;
+
 export function attachPostExitStdioGuard(
 	child: ChildWithPipedStdio,
-	options: PostExitStdioGuardOptions,
+	options?: PostExitStdioGuardOptions,
 ): () => void {
-	const { idleMs, hardMs } = options;
+	const idleMs = options?.idleMs ?? DEFAULT_IDLE_MS;
+	const hardMs = options?.hardMs ?? DEFAULT_HARD_MS;
 	let exited = false;
 	let stdoutEnded = false;
 	let stderrEnded = false;
