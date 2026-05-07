@@ -1,17 +1,17 @@
 {
   "name": "pi-subagents",
-  "version": "0.24.0",
-  "description": "Simple pi subagents extension - delegate focused tasks to specialized readonly agents",
-  "author": "Nico Bailon",
+  "version": "0.1.0",
+  "description": "Lightweight pi extension for delegating tasks to five specialized readonly agents with depth protection and output sanitization",
+  "author": "Izayoi Nayuta",
   "license": "MIT",
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/nicobailon/pi-subagents.git"
+    "url": "git+https://github.com/0xnayuta/pi-subagents.git"
   },
-  "homepage": "https://github.com/nicobailon/pi-subagents#readme",
+  "homepage": "https://github.com/0xnayuta/pi-subagents#readme",
   "bugs": {
-    "url": "https://github.com/nicobailon/pi-subagents/issues"
+    "url": "https://github.com/0xnayuta/pi-subagents/issues"
   },
   "keywords": [
     "pi-package",
