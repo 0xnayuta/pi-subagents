@@ -284,7 +284,7 @@ validate input
 ### 已完成
 
 - [x] README.md - 更新为轻量定位，明确不支持的功能
-- [x] install.mjs - 更新文案，移除 status/management 暗示
+- [x] 已删除 install.mjs（独立安装脚本），用户通过 `pi install` 安装
 - [x] docs/reference/configuration.md - 更新为 MVP 配置字段
 - [x] docs/reference/result-schema.md - 更新为 MVP 结果 Schema
 - [x] docs/reference/subagent-tool.md - 验证正确
