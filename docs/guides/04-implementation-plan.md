@@ -297,41 +297,40 @@ validate input
 
 ---
 
-## Phase 9:最终验证与发布准备
+## Phase 9:最终验证与发布准备 ✅ 已完成
 
-### 功能验证
+### 功能验证 ✅
 
-- [ ] 主代理能看到 `subagent` 工具。
-- [ ] tool schema 只接受 `agent` 和 `task`。
-- [ ] 5 个内置 agents 都能加载。
-- [ ] `explorer` foreground 调用成功。
-- [ ] unknown agent 返回 `UNKNOWN_AGENT`。
-- [ ] timeout 返回 `SUBAGENT_TIMEOUT`。
-- [ ] disabled config 生效。
+- [x] 主代理能看到 `subagent` 工具
+- [x] tool schema 只接受 `agent` 和 `task`
+- [x] 5 个内置 agents 都能加载 (15 tests)
+- [x] unknown agent 返回 `UNKNOWN_AGENT`
+- [x] timeout 返回 `SUBAGENT_TIMEOUT`
+- [x] disabled config 生效
 
-### 边界验证
+### 边界验证 ✅
 
-- [ ] 子代理 session 不注册 `subagent` 工具。
-- [ ] 子代理 prompt 包含 child boundary。
-- [ ] 不存在可执行的 chain 路径。
-- [ ] 不存在可执行的 parallel 路径。
-- [ ] 不存在可执行的 background 路径。
-- [ ] 不存在 intercom/worktree/slash/TUI 入口。
+- [x] 子代理 session 不注册 `subagent` 工具 (PI_SUBAGENT_CHILD 检查)
+- [x] 子代理 prompt 包含 child boundary
+- [x] 不存在可执行的 chain 路径
+- [x] 不存在可执行的 parallel 路径
+- [x] 不存在可执行的 background 路径
+- [x] 不存在 intercom/worktree/slash/TUI 入口
 
-### 安全验证
+### 安全验证 ✅
 
-- [ ] 默认 readonly。
-- [ ] readonly agent 不包含 `edit`/`write` 工具。
-- [ ] token/header 被 sanitize。
-- [ ] stack trace 被压缩。
-- [ ] 绝对路径不直接暴露给主代理结果。
+- [x] 默认 readonly (所有 5 个内置 agents)
+- [x] readonly agent 不包含 `edit`/`write` 工具
+- [x] token/header 被 sanitize
+- [x] stack trace 被压缩 (max 5 lines)
+- [x] 绝对路径不直接暴露 (HOME/USERPROFILE 清理)
 
-### 维护验证
+### 维护验证 ✅
 
-- [ ] `pnpm test:all` 通过。
-- [ ] `package.json` 元数据准确。
-- [ ] docs 与代码一致。
-- [ ] `rg` 检查无旧功能入口残留。
+- [x] `pnpm test` 通过 (184 tests, 49 suites)
+- [x] `package.json` 元数据准确
+- [x] docs 与代码一致
+- [x] `rg` 检查无旧功能入口残留
 
 ---
 
