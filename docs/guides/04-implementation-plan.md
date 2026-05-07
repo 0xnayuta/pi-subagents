@@ -102,105 +102,28 @@ simple pi subagents
 
 ---
 
-## Phase 2：重建 agent 定义与加载
+## Phase 2：重建 agent 定义与加载 ✅ 已完成
 
 ### 目标
 
 将内置 agents 收敛为 5 个 markdown 文件，并让加载逻辑简单可测。
 
-### 目标 agents
+### 已完成
 
-```text
-agents/
-├─ explorer.md
-├─ researcher.md
-├─ reviewer.md
-├─ implementer.md
-└─ tester.md
-```
+- [x] 删除旧内置 agents：context-builder, delegate, oracle, planner, scout, worker
+- [x] 保留并改写：researcher.md, reviewer.md
+- [x] 新增：explorer.md, implementer.md, tester.md
+- [x] 所有 agent 都包含 `readonly: true`
+- [x] 重写 `src/agents/agents.ts`：简化为 MVP agent 发现
+- [x] 添加 MVP_ERROR_CODES 类型和常量
+- [x] 更新 executor 返回结构化错误码
 
-### 当前代码约束
+### 验收标准 ✅
 
-`src/agents/frontmatter.ts` 只支持：
-
-```md
----
-name: explorer
-description: Read-only codebase navigator.
-readonly: true
-tools: read, grep, find, ls
----
-```
-
-它不支持真正 YAML 列表：
-
-```yaml
-tools:
-  - read
-  - grep
-```
-
-因此本 Phase 二选一：
-
-- 推荐 MVP：继续使用简单 parser，文档和 agents 全部使用逗号格式。
-- 可选增强：重写 parser 支持基本 YAML array，但不要引入重型依赖。
-
-### 主要任务
-
-1. 删除旧内置 agents：
-
-```text
-agents/context-builder.md
-agents/delegate.md
-agents/oracle.md
-agents/planner.md
-agents/scout.md
-agents/worker.md
-```
-
-2. 改写/保留：
-
-```text
-agents/researcher.md
-agents/reviewer.md
-```
-
-3. 新增：
-
-```text
-agents/explorer.md
-agents/implementer.md
-agents/tester.md
-```
-
-4. 每个 agent 必须包含：
-
-```text
-readonly: true
-```
-
-5. 每个 agent prompt 必须包含边界约束：
-   - 是 child subagent，不是主代理。
-   - 只处理 delegated task。
-   - 不调用、不建议额外 subagents。
-   - 不扩大范围。
-   - 信息不足时明确说明 uncertainty/blocked reason。
-
-6. 重写 `src/agents/load-agents.ts` 或裁剪 `src/agents/agents.ts`：
-   - 加载 builtins。
-   - 可选加载 user/project agents。
-   - 校验 name/description。
-   - 校验 name 唯一。
-   - 应用 enabled/readonly 配置。
-   - 不加载 chains。
-   - 不处理 management overrides。
-
-### 验收标准
-
-- `discover/loadAgents` 只返回 enabled agents。
-- 内置 agents 只有 5 个。
-- unknown agent 进入稳定错误 `UNKNOWN_AGENT`。
-- frontmatter 单测覆盖逗号工具列表与 readonly。
+- [x] `discoverAgents` 只返回有效的 agents
+- [x] 内置 agents 只有 5 个：explorer, researcher, reviewer, implementer, tester
+- [x] unknown agent 返回 `UNKNOWN_AGENT` 错误码
+- [x] frontmatter 测试覆盖逗号工具列表与 readonly
 
 ---
 

@@ -13,7 +13,7 @@ import { buildSubagentChildArgs } from "../shared/pi-args.ts";
 import { buildChildPrompt } from "../shared/subagent-prompt-runtime.ts";
 import { collectOutput } from "./collect-output.ts";
 import { sanitizeOutput } from "./sanitize.ts";
-import { truncateOutput, DEFAULT_MAX_OUTPUT, type Details, type ExtensionConfig, type SubagentState, type SingleResult, type Usage, PI_SUBAGENT_CHILD, PI_SUBAGENT_DEPTH, PI_SUBAGENT_MAX_DEPTH, checkSubagentDepth, resolveCurrentMaxSubagentDepth } from "../../shared/types.ts";
+import { truncateOutput, DEFAULT_MAX_OUTPUT, type Details, type ExtensionConfig, type SubagentState, type SingleResult, type Usage, type MvpErrorCode, PI_SUBAGENT_CHILD, PI_SUBAGENT_DEPTH, PI_SUBAGENT_MAX_DEPTH, checkSubagentDepth, resolveCurrentMaxSubagentDepth, MVP_ERROR_CODES } from "../../shared/types.ts";
 import type { AgentConfig, AgentScope } from "../../agents/agents.ts";
 
 export interface SubagentParamsLike {
@@ -42,7 +42,14 @@ function loadAgent(agentName: string, cwd: string, deps: ExecutorDeps): AgentToo
 		return {
 			content: [{ type: "text", text: `Unknown agent: ${agentName}. Available agents: ${discovered.map((a) => a.name).join(", ")}` }],
 			isError: true,
-			details: { mode: "single", results: [] },
+			details: {
+				mode: "single",
+				results: [],
+				error: {
+					code: MVP_ERROR_CODES.UNKNOWN_AGENT,
+					message: `Unknown agent: ${agentName}. Available agents: ${discovered.map((a) => a.name).join(", ")}`,
+				},
+			},
 		};
 	}
 
@@ -82,12 +89,51 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 		const cwd = ctx.cwd;
 		const { depth, maxDepth } = checkSubagentDepth(deps.config.maxSubagentDepth);
 
+		// Check if subagents are disabled
+		if (!deps.config.enabled) {
+			return {
+				content: [{ type: "text", text: "Subagents are disabled in configuration" }],
+				isError: true,
+				details: {
+					mode: "single",
+					results: [],
+					error: {
+						code: MVP_ERROR_CODES.SUBAGENTS_DISABLED,
+						message: "Subagents are disabled in configuration",
+					},
+				},
+			};
+		}
+
+		// Check depth
+		if (depth >= maxDepth) {
+			return {
+				content: [{ type: "text", text: `Maximum subagent depth (${maxDepth}) exceeded. Subagents cannot call other subagents.` }],
+				isError: true,
+				details: {
+					mode: "single",
+					results: [],
+					error: {
+						code: MVP_ERROR_CODES.SUBAGENT_DEPTH_EXCEEDED,
+						message: `Maximum subagent depth (${maxDepth}) exceeded. Subagents cannot call other subagents.`,
+					},
+				},
+			};
+		}
+
 		// Validate inputs
 		if (!params.agent) {
 			return {
 				content: [{ type: "text", text: "Missing required parameter: agent" }],
 				isError: true,
-				details: { mode: "single", results: [] },
+				details: {
+					mode: "single",
+					results: [],
+					error: {
+						code: MVP_ERROR_CODES.INVALID_INPUT,
+						message: "Missing required parameter: agent",
+					},
+				},
 			};
 		}
 
@@ -95,7 +141,14 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 			return {
 				content: [{ type: "text", text: "Missing required parameter: task" }],
 				isError: true,
-				details: { mode: "single", results: [] },
+				details: {
+					mode: "single",
+					results: [],
+					error: {
+						code: MVP_ERROR_CODES.INVALID_INPUT,
+						message: "Missing required parameter: task",
+					},
+				},
 			};
 		}
 
@@ -204,6 +257,14 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 				const message = error instanceof Error ? error.message : String(error);
 				output = `Subagent execution failed: ${message}`;
 			}
+		}
+
+		// Determine error code if execution failed
+		let errorCode: MvpErrorCode | undefined;
+		if (exitCode === 124) {
+			errorCode = MVP_ERROR_CODES.SUBAGENT_TIMEOUT;
+		} else if (exitCode !== 0) {
+			errorCode = MVP_ERROR_CODES.SUBAGENT_FAILED;
 		} finally {
 			clearTimeout(timeoutHandle);
 		}
@@ -225,11 +286,28 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 			output: sanitizedOutput,
 		};
 
+		// Determine if truncation occurred
+		let truncationError: { code: typeof MVP_ERROR_CODES.SUBAGENT_OUTPUT_TRUNCATED; message: string } | undefined;
+		if (truncationResult.truncated) {
+			truncationError = {
+				code: MVP_ERROR_CODES.SUBAGENT_OUTPUT_TRUNCATED,
+				message: `Output truncated: showing ${truncationResult.originalLines} of ${truncationResult.originalLines} lines`,
+			};
+		}
+
 		const details: Details = {
 			mode: "single",
 			runId,
 			results: [singleResult],
 		};
+
+		// Add error info if execution failed
+		if (errorCode) {
+			details.error = {
+				code: errorCode,
+				message: sanitizedOutput,
+			};
+		}
 
 		if (exitCode !== 0) {
 			return {
@@ -237,6 +315,11 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 				isError: true,
 				details,
 			};
+		}
+
+		// Add truncation warning if applicable
+		if (truncationError) {
+			details.error = truncationError;
 		}
 
 		return {

@@ -42,6 +42,23 @@ export interface AgentDefinition {
 }
 
 // ============================================================================
+// MVP Error Codes
+// ============================================================================
+
+export const MVP_ERROR_CODES = {
+	INVALID_INPUT: "INVALID_INPUT",
+	SUBAGENTS_DISABLED: "SUBAGENTS_DISABLED",
+	UNKNOWN_AGENT: "UNKNOWN_AGENT",
+	SUBAGENT_DISABLED: "SUBAGENT_DISABLED",
+	SUBAGENT_DEPTH_EXCEEDED: "SUBAGENT_DEPTH_EXCEEDED",
+	SUBAGENT_TIMEOUT: "SUBAGENT_TIMEOUT",
+	SUBAGENT_FAILED: "SUBAGENT_FAILED",
+	SUBAGENT_OUTPUT_TRUNCATED: "SUBAGENT_OUTPUT_TRUNCATED",
+} as const;
+
+export type MvpErrorCode = typeof MVP_ERROR_CODES[keyof typeof MVP_ERROR_CODES];
+
+// ============================================================================
 // Results
 // ============================================================================
 
@@ -76,9 +93,14 @@ export interface SingleResult {
 // ============================================================================
 
 export interface Details {
-	mode: "single" | "management";
+	mode: "single";
 	runId?: string;
 	results: SingleResult[];
+	// Optional structured result for error handling
+	error?: {
+		code: MvpErrorCode;
+		message: string;
+	};
 }
 
 // ============================================================================
