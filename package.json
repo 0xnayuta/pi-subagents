@@ -1,7 +1,7 @@
 {
   "name": "pi-subagents",
   "version": "0.24.0",
-  "description": "Pi extension for delegating tasks to subagents with chains, parallel execution, and TUI clarification",
+  "description": "Simple pi subagents extension - delegate focused tasks to specialized readonly agents",
   "author": "Nico Bailon",
   "license": "MIT",
   "type": "module",
@@ -29,10 +29,9 @@
     "src/**/*.ts",
     "*.mjs",
     "agents/",
-    "skills/**/*",
-    "prompts/**/*",
     "README.md",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "docs/"
   ],
   "scripts": {
     "test": "pnpm test:unit",
@@ -45,12 +44,6 @@
   "pi": {
     "extensions": [
       "./src/extension/index.ts"
-    ],
-    "skills": [
-      "./skills"
-    ],
-    "prompts": [
-      "./prompts"
     ]
   },
   "peerDependencies": {

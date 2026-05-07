@@ -1,17 +1,86 @@
+/**
+ * Build pi arguments for subagent execution
+ */
+
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const THINKING_LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh"];
-const TASK_ARG_LIMIT = 8000;
-const PROMPT_RUNTIME_EXTENSION_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), "subagent-prompt-runtime.ts");
-export const SUBAGENT_CHILD_ENV = "PI_SUBAGENT_CHILD";
-export const SUBAGENT_ORCHESTRATOR_TARGET_ENV = "PI_SUBAGENT_ORCHESTRATOR_TARGET";
-export const SUBAGENT_RUN_ID_ENV = "PI_SUBAGENT_RUN_ID";
-export const SUBAGENT_CHILD_AGENT_ENV = "PI_SUBAGENT_CHILD_AGENT";
-export const SUBAGENT_CHILD_INDEX_ENV = "PI_SUBAGENT_CHILD_INDEX";
+export const PI_SUBAGENT_CHILD = "PI_SUBAGENT_CHILD";
+export const PI_SUBAGENT_DEPTH = "PI_SUBAGENT_DEPTH";
+export const PI_SUBAGENT_MAX_DEPTH = "PI_SUBAGENT_MAX_DEPTH";
 
+const TASK_ARG_LIMIT = 8000;
+const THINKING_LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh"];
+
+export function applyThinkingSuffix(model: string | undefined, thinking: string | undefined): string | undefined {
+	if (!model || !thinking || thinking === "off") return model;
+	const colonIdx = model.lastIndexOf(":");
+	if (colonIdx !== -1 && THINKING_LEVELS.includes(model.substring(colonIdx + 1))) return model;
+	return `${model}:${thinking}`;
+}
+
+/**
+ * Build arguments for spawning a pi child process
+ */
+export function buildSubagentChildArgs(input: {
+	mode: "json" | "text";
+	systemPrompt: string;
+	cwd: string;
+	sessionFile?: string;
+	model?: string;
+	tools?: string[];
+	env?: Record<string, string>;
+}): { args: string[]; env: Record<string, string | undefined>; tempDir?: string } {
+	const args: string[] = [];
+
+	// Set output mode
+	if (input.mode === "json") {
+		args.push("--mode", "json");
+	}
+
+	// Session file
+	let tempDir: string | undefined;
+	if (input.sessionFile) {
+		fs.mkdirSync(path.dirname(input.sessionFile), { recursive: true });
+		args.push("--session", input.sessionFile);
+	} else {
+		args.push("--no-session");
+	}
+
+	// Model
+	if (input.model) {
+		args.push("--model", input.model);
+	}
+
+	// Tools
+	if (input.tools?.length) {
+		args.push("--tools", input.tools.join(","));
+	}
+
+	// System prompt (written to temp file)
+	tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-"));
+	const promptPath = path.join(tempDir, "prompt.md");
+	fs.writeFileSync(promptPath, input.systemPrompt, { mode: 0o600 });
+	args.push("--system-prompt", promptPath);
+
+	// Task (appended after system prompt)
+	// Note: The actual task is included in the system prompt, so no additional task arg needed
+
+	// Environment
+	const env: Record<string, string | undefined> = {
+		...process.env,
+		...input.env,
+		[PI_SUBAGENT_CHILD]: "1",
+	};
+
+	return { args, env, tempDir };
+}
+
+/**
+ * Legacy buildPiArgs function for compatibility
+ */
 interface BuildPiArgsInput {
 	baseArgs: string[];
 	task: string;
@@ -26,29 +95,9 @@ interface BuildPiArgsInput {
 	tools?: string[];
 	extensions?: string[];
 	systemPrompt?: string | null;
-	mcpDirectTools?: string[];
-	promptFileStem?: string;
-	intercomSessionName?: string;
-	orchestratorIntercomTarget?: string;
-	runId?: string;
-	childAgentName?: string;
-	childIndex?: number;
 }
 
-interface BuildPiArgsResult {
-	args: string[];
-	env: Record<string, string | undefined>;
-	tempDir?: string;
-}
-
-export function applyThinkingSuffix(model: string | undefined, thinking: string | undefined): string | undefined {
-	if (!model || !thinking || thinking === "off") return model;
-	const colonIdx = model.lastIndexOf(":");
-	if (colonIdx !== -1 && THINKING_LEVELS.includes(model.substring(colonIdx + 1))) return model;
-	return `${model}:${thinking}`;
-}
-
-export function buildPiArgs(input: BuildPiArgsInput): BuildPiArgsResult {
+export function buildPiArgs(input: BuildPiArgsInput): { args: string[]; env: Record<string, string | undefined>; tempDir?: string } {
 	const args = [...input.baseArgs];
 
 	if (input.sessionFile) {
@@ -84,14 +133,9 @@ export function buildPiArgs(input: BuildPiArgsInput): BuildPiArgsResult {
 		}
 	}
 
-	const runtimeExtensions = [PROMPT_RUNTIME_EXTENSION_PATH];
 	if (input.extensions !== undefined) {
 		args.push("--no-extensions");
-		for (const extPath of [...new Set([...runtimeExtensions, ...toolExtensionPaths, ...input.extensions])]) {
-			args.push("--extension", extPath);
-		}
-	} else {
-		for (const extPath of [...new Set([...runtimeExtensions, ...toolExtensionPaths])]) {
+		for (const extPath of input.extensions) {
 			args.push("--extension", extPath);
 		}
 	}
@@ -103,7 +147,7 @@ export function buildPiArgs(input: BuildPiArgsInput): BuildPiArgsResult {
 	let tempDir: string | undefined;
 	if (input.systemPrompt !== undefined && input.systemPrompt !== null) {
 		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-"));
-		const stem = (input.promptFileStem ?? "prompt").replace(/[^\w.-]/g, "_");
+		const stem = "prompt".replace(/<[^\w.-]/g, "_");
 		const promptPath = path.join(tempDir, `${stem}.md`);
 		fs.writeFileSync(promptPath, input.systemPrompt, { mode: 0o600 });
 		args.push(input.systemPromptMode === "replace" ? "--system-prompt" : "--append-system-prompt", promptPath);
@@ -121,38 +165,52 @@ export function buildPiArgs(input: BuildPiArgsInput): BuildPiArgsResult {
 	}
 
 	const env: Record<string, string | undefined> = {};
-	env[SUBAGENT_CHILD_ENV] = "1";
-	env.PI_SUBAGENT_INHERIT_PROJECT_CONTEXT = input.inheritProjectContext ? "1" : "0";
-	env.PI_SUBAGENT_INHERIT_SKILLS = input.inheritSkills ? "1" : "0";
-	if (input.intercomSessionName) {
-		env.PI_SUBAGENT_INTERCOM_SESSION_NAME = input.intercomSessionName;
-	}
-	if (input.orchestratorIntercomTarget) {
-		env[SUBAGENT_ORCHESTRATOR_TARGET_ENV] = input.orchestratorIntercomTarget;
-	}
-	if (input.runId) {
-		env[SUBAGENT_RUN_ID_ENV] = input.runId;
-	}
-	if (input.childAgentName) {
-		env[SUBAGENT_CHILD_AGENT_ENV] = input.childAgentName;
-	}
-	if (input.childIndex !== undefined) {
-		env[SUBAGENT_CHILD_INDEX_ENV] = String(input.childIndex);
-	}
-	if (input.mcpDirectTools?.length) {
-		env.MCP_DIRECT_TOOLS = input.mcpDirectTools.join(",");
-	} else {
-		env.MCP_DIRECT_TOOLS = "__none__";
-	}
+	env[PI_SUBAGENT_CHILD] = "1";
 
 	return { args, env, tempDir };
 }
 
+/**
+ * Build a simple pi command line
+ */
+export function buildPiCommand(task: string, options: {
+	mode?: "json" | "text";
+	model?: string;
+	tools?: string[];
+	sessionFile?: string;
+} = {}): string[] {
+	const args: string[] = [];
+
+	if (options.mode === "json") {
+		args.push("--mode", "json");
+	}
+
+	if (options.sessionFile) {
+		args.push("--session", options.sessionFile);
+	}
+
+	if (options.model) {
+		args.push("--model", options.model);
+	}
+
+	if (options.tools?.length) {
+		args.push("--tools", options.tools.join(","));
+	}
+
+	// Append task
+	args.push(task);
+
+	return args;
+}
+
+/**
+ * Cleanup temp directory
+ */
 export function cleanupTempDir(tempDir: string | null | undefined): void {
 	if (!tempDir) return;
 	try {
 		fs.rmSync(tempDir, { recursive: true, force: true });
 	} catch {
-		// Temp cleanup is best effort.
+		// Best effort cleanup
 	}
 }

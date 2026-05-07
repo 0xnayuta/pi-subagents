@@ -224,8 +224,8 @@ Do work.
 		const result = discoverAgents(dir, "project");
 		const agent = result.agents.find((a) => a.name === "worker");
 		assert.ok(agent, "worker should be discovered");
-		// MVP: inheritSkills not supported, should default to false
-		assert.equal(agent.inheritSkills, false);
+		// MVP: inheritSkills not supported, agent config should not have this field
+		assert.equal((agent as any).inheritSkills, undefined);
 	});
 
 	it("does not parse 'defaultContext' frontmatter (fork context removed)", () => {
