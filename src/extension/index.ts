@@ -12,31 +12,27 @@
  */
 
 import * as fs from "node:fs";
-import * as path from "node:path";
 import * as os from "node:os";
+import * as path from "node:path";
 import type { AgentToolResult } from "@mariozechner/pi-agent-core";
-import {
-  type ExtensionAPI,
-  type ExtensionContext,
-  type ToolDefinition,
-} from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
 import { Text } from "@mariozechner/pi-tui";
-import { SubagentParams } from "./schemas.ts";
+import { discoverAgents } from "../agents/agents.ts";
+import {
+  type SubagentParamsLike,
+  createSubagentExecutor,
+} from "../runtime/foreground/subagent-executor.ts";
+import { resolveCurrentSessionId } from "../shared/session-identity.ts";
 import {
   type Details,
   type ExtensionConfig,
-  type SubagentState,
-  RESULTS_DIR,
+  MVP_ERROR_CODES,
   PI_SUBAGENT_CHILD,
+  RESULTS_DIR,
+  type SubagentState,
   checkSubagentDepth,
-  resolveCurrentMaxSubagentDepth,
 } from "../shared/types.ts";
-import {
-  createSubagentExecutor,
-  type SubagentParamsLike,
-} from "../runtime/foreground/subagent-executor.ts";
-import { discoverAgents } from "../agents/agents.ts";
-import { resolveCurrentSessionId } from "../shared/session-identity.ts";
+import { SubagentParams } from "./schemas.ts";
 
 /**
  * Derive subagent session base directory from parent session file.
@@ -80,15 +76,6 @@ function loadConfig(): ExtensionConfig {
   return {};
 }
 
-function loadDefaultConfig(): Required<ExtensionConfig> {
-  return {
-    enabled: true,
-    maxSubagentDepth: 1,
-    timeoutMs: 120000,
-    allowWriteSubagents: false,
-  };
-}
-
 function mergeConfig(base: ExtensionConfig): Required<ExtensionConfig> {
   return {
     enabled: base.enabled ?? true,
@@ -101,8 +88,6 @@ function mergeConfig(base: ExtensionConfig): Required<ExtensionConfig> {
 export default function registerSubagentExtension(pi: ExtensionAPI): void {
   // Prevent child processes from registering this extension
   if (process.env[PI_SUBAGENT_CHILD] === "1") return;
-
-  const globalStore = globalThis as Record<string, unknown>;
 
   // Ensure results directory exists
   ensureAccessibleDir(RESULTS_DIR);
@@ -150,8 +135,14 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
             text: `Subagent depth exceeded (${depthCheck.depth}/${depthCheck.maxDepth}). Nested subagents are not allowed.`,
           },
         ],
-        isError: true,
-        details: { mode: "management", results: [] },
+        details: {
+          mode: "management",
+          results: [],
+          error: {
+            code: MVP_ERROR_CODES.SUBAGENT_DEPTH_EXCEEDED,
+            message: `Subagent depth exceeded (${depthCheck.depth}/${depthCheck.maxDepth}). Nested subagents are not allowed.`,
+          },
+        },
       });
     }
 
@@ -164,7 +155,7 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
   };
 
   // Define the subagent tool
-  const tool: ToolDefinition<typeof SubagentParams, Details> = {
+  const tool = {
     name: "subagent",
     label: "Subagent",
     description: `Delegate a focused task to a specialized readonly agent.
@@ -182,34 +173,42 @@ Parameters:
 
 Example:
   subagent({ agent: "explorer", task: "Find where authentication is implemented" })`,
-    parameters: SubagentParams,
-
-    execute(id, params, signal, onUpdate, ctx) {
+    parameters: SubagentParams as any,
+    execute(
+      id: string,
+      params: SubagentParamsLike,
+      signal: AbortSignal,
+      onUpdate: ((result: AgentToolResult<Details>) => void) | undefined,
+      ctx: ExtensionContext
+    ) {
       return executeSubagent(id, params, signal, onUpdate, ctx);
     },
 
-    renderCall(args, theme) {
+    renderCall(args: any, theme: any) {
       const label = `${theme.fg("toolTitle", theme.bold("subagent "))}${theme.fg("accent", args.agent || "?")}`;
       return new Text(label, 0, 0);
     },
 
-    renderResult(result, _options, theme) {
+    renderResult(result: any, _options: any, theme: any, context: any) {
       // Safely extract text content from result
       const content = result.content
-        .filter(
-          (item): item is { type: "text"; text: string } => item.type === "text"
-        )
-        .map((item) => item.text)
+        .filter((item: any): item is { type: "text"; text: string } => item.type === "text")
+        .map((item: any) => item.text)
         .join("\n");
 
-      // Note: isError may not be in type definition but exists at runtime
-      const isError = (result as unknown as { isError?: boolean }).isError;
-      const prefix = isError ? theme.fg("error", "✗") : theme.fg("success", "✓");
-
-      const displayText = content || "(no output)";
+      const hasManagedError =
+        Boolean(result.details?.error) ||
+        Boolean(
+          result.details?.results?.some(
+            (r: any) => typeof r.exitCode === "number" && r.exitCode !== 0
+          )
+        );
+      const prefix =
+        context?.isError || hasManagedError ? theme.fg("error", "✗") : theme.fg("success", "✓");
+      const displayText = content || result.details?.error?.message || "(no output)";
       return new Text(`${prefix} ${displayText}`, 0, 0);
     },
-  };
+  } as any;
 
   // Register the tool
   pi.registerTool(tool);

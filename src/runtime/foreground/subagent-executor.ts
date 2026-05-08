@@ -3,33 +3,31 @@
  * Only supports: foreground single execution
  */
 
+import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { randomUUID } from "node:crypto";
 import type { AgentToolResult } from "@mariozechner/pi-agent-core";
 import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
-import { runSync } from "./execution.ts";
-import { buildSubagentChildArgs, cleanupTempDir } from "../shared/pi-args.ts";
-import { buildChildPrompt } from "../shared/subagent-prompt-runtime.ts";
-import { collectOutput } from "./collect-output.ts";
-import { sanitizeOutput } from "./sanitize.ts";
+import type { AgentConfig, AgentScope } from "../../agents/agents.ts";
 import {
-  truncateOutput,
   DEFAULT_MAX_OUTPUT,
   type Details,
   type ExtensionConfig,
-  type SubagentState,
-  type SingleResult,
-  type Usage,
+  MVP_ERROR_CODES,
   type MvpErrorCode,
   PI_SUBAGENT_CHILD,
   PI_SUBAGENT_DEPTH,
   PI_SUBAGENT_MAX_DEPTH,
+  type SingleResult,
+  type SubagentState,
+  type Usage,
   checkSubagentDepth,
-  resolveCurrentMaxSubagentDepth,
-  MVP_ERROR_CODES,
+  truncateOutput,
 } from "../../shared/types.ts";
-import type { AgentConfig, AgentScope } from "../../agents/agents.ts";
+import { buildSubagentChildArgs, cleanupTempDir } from "../shared/pi-args.ts";
+import { buildChildPrompt } from "../shared/subagent-prompt-runtime.ts";
+import { runSync } from "./execution.ts";
+import { sanitizeOutput } from "./sanitize.ts";
 
 export interface SubagentParamsLike {
   agent: string;
@@ -65,7 +63,6 @@ function loadAgent(
           text: `Unknown agent: ${agentName}. Available agents: ${discovered.map((a) => a.name).join(", ")}`,
         },
       ],
-      isError: true,
       details: {
         mode: "single",
         results: [],
@@ -114,7 +111,7 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
   ) => Promise<AgentToolResult<Details>>;
 } {
   const execute = async (
-    id: string,
+    _id: string,
     params: SubagentParamsLike,
     signal: AbortSignal,
     onUpdate: ((r: AgentToolResult<Details>) => void) | undefined,
@@ -127,7 +124,6 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
     if (!deps.config.enabled) {
       return {
         content: [{ type: "text", text: "Subagents are disabled in configuration" }],
-        isError: true,
         details: {
           mode: "single",
           results: [],
@@ -148,7 +144,6 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
             text: `Maximum subagent depth (${maxDepth}) exceeded. Subagents cannot call other subagents.`,
           },
         ],
-        isError: true,
         details: {
           mode: "single",
           results: [],
@@ -164,7 +159,6 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
     if (!params.agent) {
       return {
         content: [{ type: "text", text: "Missing required parameter: agent" }],
-        isError: true,
         details: {
           mode: "single",
           results: [],
@@ -179,7 +173,6 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
     if (!params.task) {
       return {
         content: [{ type: "text", text: "Missing required parameter: task" }],
-        isError: true,
         details: {
           mode: "single",
           results: [],
@@ -233,10 +226,17 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
       fs.mkdirSync(sessionDir, { recursive: true });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+
       return {
         content: [{ type: "text", text: `Failed to create session directory: ${message}` }],
-        isError: true,
-        details: { mode: "single", results: [] },
+        details: {
+          mode: "single",
+          results: [],
+          error: {
+            code: MVP_ERROR_CODES.SUBAGENT_FAILED,
+            message: `Failed to create session directory: ${message}`,
+          },
+        },
       };
     }
 
@@ -275,7 +275,7 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
         env: piArgs.env,
         onUpdate: (update) => {
           onUpdate?.({
-            content: update.content,
+            content: update.content as any,
             details: {
               mode: "single",
               results: [],
@@ -359,7 +359,6 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
     if (exitCode !== 0) {
       return {
         content: [{ type: "text", text: sanitizedOutput }],
-        isError: true,
         details,
       };
     }

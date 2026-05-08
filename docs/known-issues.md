@@ -1,6 +1,8 @@
 # 已知问题
 
-## KI-001: `renderResult` 渲染结果输出为 `[object Object]`
+> ⚠️ **重要**：部分已知问题与 pi 生态的类型定义不完整有关。详见 [docs/type-compatibility.md](./type-compatibility.md)。
+
+## KI-001: `renderResult` 渲染结果输出为 `[object Object]` — ✅ 已修复
 
 **发现时间**: 2026-05-08
 **严重程度**: 中
@@ -23,12 +25,13 @@
 **文件**: `src/extension/index.ts`，`renderResult` 函数
 
 ```typescript
-renderResult(result, options, theme) {
+renderResult(result, options, theme, context) {
     const content = result.content
         .map((item) => item.type === "text" ? item.text : "")
         .join("\n");
 
-    const prefix = result.isError
+    const hasManagedError = Boolean(result.details?.error);
+    const prefix = context?.isError || hasManagedError
         ? theme.fg("error", "✗")
         : theme.fg("success", "✓");
 
@@ -77,3 +80,31 @@ renderResult(result, options, theme) {
 - `src/extension/index.ts` — `renderResult` 和 `renderCall` 实现
 - `docs/guides/03-extension-api.md` — pi 扩展 API 中 `Component` 类型定义
 - `docs/reference/result-schema.md` — 子代理结果 schema
+
+### 修复说明 (2026-05-08)
+
+**问题已修复**，修复内容：
+
+1. **返回 `Text` 组件而非自定义对象**
+   ```typescript
+   import { Text } from "@mariozechner/pi-tui";
+   
+   renderResult(result, _options, theme, context) {
+       // 安全提取文本内容
+       const content = result.content
+           .filter((item): item is { type: "text"; text: string } => item.type === "text")
+           .map((item) => item.text)
+           .join("\n");
+       
+       const hasManagedError = Boolean(result.details?.error);
+       const prefix = context?.isError || hasManagedError
+           ? theme.fg("error", "✗")
+           : theme.fg("success", "✓");
+       
+       return new Text(`${prefix} ${content || "(no output)"}`, 0, 0);
+   }
+   ```
+
+2. **防御性内容提取**：使用类型守卫确保安全
+
+3. **`renderCall` 同步修复**：使用相同模式

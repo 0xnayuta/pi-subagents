@@ -5,7 +5,6 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { fileURLToPath } from "node:url";
 
 export const PI_SUBAGENT_CHILD = "PI_SUBAGENT_CHILD";
 export const PI_SUBAGENT_DEPTH = "PI_SUBAGENT_DEPTH";
@@ -44,7 +43,10 @@ export function buildSubagentChildArgs(input: {
   }
 
   // Session file
-  let tempDir: string | undefined;
+  const tempDir = input.sessionFile
+    ? path.dirname(input.sessionFile)
+    : fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-"));
+
   if (input.sessionFile) {
     fs.mkdirSync(path.dirname(input.sessionFile), { recursive: true });
     args.push("--session", input.sessionFile);
@@ -63,7 +65,6 @@ export function buildSubagentChildArgs(input: {
   }
 
   // System prompt (written to temp file)
-  tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-"));
   const promptPath = path.join(tempDir, "prompt.md");
   fs.writeFileSync(promptPath, input.systemPrompt, { mode: 0o600 });
   args.push("--system-prompt", promptPath);

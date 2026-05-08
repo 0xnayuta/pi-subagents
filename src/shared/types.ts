@@ -92,8 +92,10 @@ export interface SingleResult {
 // Execution
 // ============================================================================
 
+export type DetailsMode = "single" | "management";
+
 export interface Details {
-  mode: "single";
+  mode: DetailsMode;
   runId?: string;
   results: SingleResult[];
   // Optional structured result for error handling
@@ -101,6 +103,19 @@ export interface Details {
     code: MvpErrorCode;
     message: string;
   };
+}
+
+// TextContent type (copied from pi-agent-core for local use)
+export interface TextContent {
+  type: "text";
+  text: string;
+}
+
+// ImageContent type (copied from pi-agent-core for local use)
+export interface ImageContent {
+  type: "image";
+  data: string;
+  mimeType?: string;
 }
 
 // ============================================================================

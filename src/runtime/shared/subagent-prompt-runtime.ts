@@ -189,7 +189,7 @@ export function stripParentOnlySubagentMessages(messages: unknown[]): unknown[] 
 }
 
 export default function registerSubagentPromptRuntime(pi: ExtensionAPI): void {
-  pi.on("context", (event) => {
+  pi.on("context" as any, (event: any) => {
     const messages = stripParentOnlySubagentMessages(event.messages);
     if (messages === event.messages) return undefined;
     return { messages };

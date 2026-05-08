@@ -4,10 +4,9 @@
  */
 
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
+import { attachPostExitStdioGuard, trySignalChild } from "../../shared/post-exit-stdio-guard.ts";
 import type { Usage } from "../../shared/types.ts";
 import { getPiSpawnCommand } from "../shared/pi-spawn.ts";
-import { attachPostExitStdioGuard, trySignalChild } from "../../shared/post-exit-stdio-guard.ts";
 
 interface RunSyncResult {
   exitCode: number;
@@ -46,7 +45,7 @@ export async function runSync(
 
     // Handle signal
     const handleAbort = () => {
-      trySignalChild(child);
+      trySignalChild(child, "SIGTERM");
     };
 
     signal?.addEventListener("abort", handleAbort);
@@ -129,7 +128,7 @@ export function spawnPi(
   const cleanup = attachPostExitStdioGuard(child);
 
   options.signal?.addEventListener("abort", () => {
-    trySignalChild(child);
+    trySignalChild(child, "SIGTERM");
   });
 
   child.stdout?.on("data", (data: Buffer) => {
@@ -141,7 +140,7 @@ export function spawnPi(
   });
 
   child.on("close", (code) => {
-    options.signal?.removeEventListener("abort", () => trySignalChild(child));
+    options.signal?.removeEventListener("abort", () => trySignalChild(child, "SIGTERM"));
     cleanup();
     options.onClose?.(code);
   });

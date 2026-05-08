@@ -108,7 +108,7 @@ function loadAgentFromFile(filePath: string, source: AgentSource): AgentConfig |
     return {
       name: frontmatter.name,
       description: frontmatter.description ?? "",
-      readonly: frontmatter.readonly === true || frontmatter.readonly === "true",
+      readonly: frontmatter.readonly === "true" || frontmatter.readonly === "1",
       tools,
       model: frontmatter.model,
       systemPrompt: body || frontmatter.description || "",

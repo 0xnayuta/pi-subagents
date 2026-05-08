@@ -14,6 +14,9 @@
     "declarationMap": true,
     "sourceMap": true,
 
+    /* Type checking only - no emit for typecheck script */
+    "noEmit": true,
+
     /* Allow .ts extensions in imports (pi ecosystem convention) */
     "allowImportingTsExtensions": true,
 
@@ -33,16 +36,9 @@
     "isolatedModules": true,
     "allowSyntheticDefaultImports": true,
 
-    /* Path mapping */
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./src/*"]
-    },
-
     /* Skip lib check (peer deps) */
     "skipLibCheck": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "test"],
-  "note": "Known issues: See docs/known-issues.md for type compatibility notes with pi ecosystem"
+  "exclude": ["node_modules", "dist", "test"]
 }

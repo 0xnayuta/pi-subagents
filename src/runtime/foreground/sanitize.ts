@@ -86,7 +86,7 @@ function truncateStackTrace(output: string): string {
       if (stackLines <= maxStackLines) {
         result.push(line);
       } else if (stackLines === maxStackLines + 1) {
-        result.push(`    ... [${line.length > 100 ? line.slice(0, 100) + "..." : line}]`);
+        result.push(`    ... [${line.length > 100 ? `${line.slice(0, 100)}...` : line}]`);
         result.push("    [Additional stack frames truncated]");
       }
     } else {
