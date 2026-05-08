@@ -1,3 +1,9 @@
+---
+status: current
+audience: all
+last_verified: 2026-05-08
+---
+
 # 目标与范围
 
 ## 项目目标
@@ -71,7 +77,7 @@ You are a custom review subagent.
 
 默认不允许。readonly agents 只允许安全工具：`read, grep, find, ls`。researcher 可额外允许：`web_search, fetch_content, get_search_content`。
 
-`bash` 无法技术上保证只读，模型仍可能执行写文件或修改系统的命令。如需开启，应通过显式配置。
+`bash` 无法技术上保证只读，模型仍可能执行写文件或修改系统的命令。因此 readonly agents 中不开放 `bash`。如未来需要恢复该能力，必须新增 ADR 并引入显式配置。
 
 ### 4. `skills` 目录
 

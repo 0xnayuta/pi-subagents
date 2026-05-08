@@ -1,3 +1,9 @@
+---
+status: current
+audience: user
+last_verified: 2026-05-08
+---
+
 # Agent 定义格式
 
 Agent 使用 markdown frontmatter + prompt 正文定义。
@@ -40,7 +46,7 @@ Your job:
 | Agent | 职责 | 默认工具 |
 |---|---|---|
 | `explorer` | 搜索代码、定位文件、梳理调用链 | `read, grep, find, ls` |
-| `researcher` | 文档/API/外部资料研究 | `read, web_search, fetch_content, get_search_content` |
+| `researcher` | 文档/API/外部资料研究 | `web_search, fetch_content, get_search_content` |
 | `reviewer` | 架构、代码、方案审查 | `read, grep, find, ls` |
 | `implementer` | 返回 patch plan 或 implementation plan（不直接写文件） | `read, grep, find, ls` |
 | `tester` | 返回 test plan 或测试建议（不直接写文件） | `read, grep, find, ls` |
@@ -49,7 +55,7 @@ Your job:
 
 支持 user/project 自定义 markdown agents。放在以下目录即可被发现：
 
-- 用户级：`~/.agents/`
+- 用户级：`~/.pi/agent/agents/`
 - 项目级：`.agents/` 或 `.pi/agents/`
 
 自定义 agents 同样使用简单 frontmatter，支持 `name`、`description`、`readonly`、`tools`。

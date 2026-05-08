@@ -1,3 +1,9 @@
+---
+status: historical
+audience: maintainer
+last_verified: 2026-05-08
+---
+
 # pi-subagents 简化改造参考文档
 
 本文档用于在克隆 [`nicobailon/pi-subagents`](https://github.com/nicobailon/pi-subagents) 后，指导将其简化改造成一个更轻量、更可维护、符合“简单 subagents”目标的版本。

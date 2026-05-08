@@ -1,3 +1,9 @@
+---
+status: current
+audience: maintainer
+last_verified: 2026-05-08
+---
+
 # 测试策略
 
 ## 核心测试范围

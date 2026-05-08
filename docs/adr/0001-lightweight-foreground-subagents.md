@@ -1,3 +1,9 @@
+---
+status: current
+audience: maintainer
+last_verified: 2026-05-08
+---
+
 # ADR 0001：采用轻量 foreground subagent 设计
 
 ## 状态

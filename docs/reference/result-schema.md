@@ -1,3 +1,9 @@
+---
+status: current
+audience: user
+last_verified: 2026-05-08
+---
+
 # 结果 Schema
 
 ## 成功结果

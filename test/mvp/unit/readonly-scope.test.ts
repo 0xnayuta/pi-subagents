@@ -140,7 +140,8 @@ describe("MVP User/Project Agents Readonly Default", () => {
 });
 
 describe("MVP Config Override", () => {
-	it("allowWriteSubagents: true enables bash for specific agents", () => {
-		// This would be tested in integration tests
+	it("readonly agents do not get bash even when write support exists elsewhere", () => {
+		// This would be tested in integration tests.
+		// MVP readonly agents remain limited to read/grep/find/ls and researcher web tools.
 	});
 });

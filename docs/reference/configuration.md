@@ -1,3 +1,9 @@
+---
+status: current
+audience: user
+last_verified: 2026-05-08
+---
+
 # 配置参考
 
 ## 配置文件位置
@@ -43,7 +49,7 @@
 read, grep, find, ls
 ```
 
-researcher 可额外使用：
+researcher 可使用网络研究工具：
 
 ```text
 web_search, fetch_content, get_search_content

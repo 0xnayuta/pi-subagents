@@ -1,3 +1,9 @@
+---
+status: proposed
+audience: maintainer
+last_verified: 2026-05-08
+---
+
 # ADR 0003：自主触发子代理的改进方案
 
 ## 状态

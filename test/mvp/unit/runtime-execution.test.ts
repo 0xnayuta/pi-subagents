@@ -148,7 +148,7 @@ describe("MVP Runtime Execution", () => {
 	});
 
 	describe("Readonly Tools Filtering", () => {
-		const ALLOWED_READONLY_TOOLS = ["read", "grep", "find", "ls", "bash", "web_search", "fetch_content", "get_search_content"];
+		const ALLOWED_READONLY_TOOLS = ["read", "grep", "find", "ls", "web_search", "fetch_content", "get_search_content"];
 		const FORBIDDEN_WRITE_TOOLS = ["edit", "write", "delete", "mkdir", "rm"];
 
 		it("filters write tools when agent is readonly", () => {
@@ -173,7 +173,8 @@ describe("MVP Runtime Execution", () => {
 				? agentTools.filter((t) => ALLOWED_READONLY_TOOLS.includes(t))
 				: agentTools;
 			
-			assert.deepEqual(filtered, agentTools);
+			assert.deepEqual(filtered, ["read", "grep", "find", "ls", "web_search"]);
+			assert.ok(!filtered.includes("bash"));
 		});
 
 		it("rejects forbidden tools regardless of agent config", () => {

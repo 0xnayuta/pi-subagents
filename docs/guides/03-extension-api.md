@@ -1,3 +1,9 @@
+---
+status: current
+audience: maintainer
+last_verified: 2026-05-08
+---
+
 # Pi Extension API 最小用法参考
 
 本文档记录 MVP 简化过程中需要的 pi 扩展 API 最小子集。

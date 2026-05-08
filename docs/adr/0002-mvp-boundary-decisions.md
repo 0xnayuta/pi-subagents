@@ -1,3 +1,9 @@
+---
+status: current
+audience: maintainer
+last_verified: 2026-05-08
+---
+
 # ADR 0002：MVP 边界决策
 
 ## 状态
@@ -28,7 +34,7 @@ Accepted
 
 readonly agents 只允许安全工具：`read, grep, find, ls`。researcher 可额外允许 `web_search, fetch_content, get_search_content`。
 
-`bash` 无法技术上保证只读。即使 prompt 写了 "read-only inspection commands"，模型仍可能执行写文件或修改系统的命令。如需开启，应通过显式配置 `allowBashInReadonlySubagents: true`。
+`bash` 无法技术上保证只读。即使 prompt 写了 "read-only inspection commands"，模型仍可能执行写文件或修改系统的命令。因此 MVP 不在 readonly agents 中开放 `bash`。如未来需要恢复该能力，必须新增 ADR 并引入显式配置。
 
 ### 4. `skills` 目录
 

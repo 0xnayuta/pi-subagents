@@ -71,9 +71,9 @@ pnpm format
 pnpm lint:fix
 
 # 测试
-pnpm test
-pnpm test:unit
-pnpm test:mvp
+pnpm test       # unit tests
+pnpm test:unit  # unit tests
+pnpm test:mvp   # MVP suite
 ```
 
 ### 验证命令
@@ -84,6 +84,9 @@ rg "chain|parallel|background|intercom|worktree|slash|tui" src
 
 # 验证 schema 极简
 rg "Type.Object" src/extension/schemas.ts
+
+# 验证文档同步
+pnpm docs:check
 ```
 
 ---

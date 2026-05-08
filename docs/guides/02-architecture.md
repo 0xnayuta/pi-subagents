@@ -1,3 +1,9 @@
+---
+status: current
+audience: maintainer
+last_verified: 2026-05-08
+---
+
 # 架构总览
 
 ## 简化后模块

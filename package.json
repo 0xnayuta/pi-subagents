@@ -36,7 +36,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "biome check src",
     "lint:fix": "biome check --write src",
-    "format": "biome format --write src"
+    "format": "biome format --write src",
+    "docs:check": "node scripts/check-docs.mjs"
   },
   "pi": {
     "extensions": [

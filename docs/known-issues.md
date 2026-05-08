@@ -1,3 +1,9 @@
+---
+status: current
+audience: maintainer
+last_verified: 2026-05-08
+---
+
 # 已知问题
 
 > ⚠️ **重要**：部分已知问题与 pi 生态的类型定义不完整有关。详见 [docs/type-compatibility.md](./type-compatibility.md)。

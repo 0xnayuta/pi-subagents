@@ -1,3 +1,9 @@
+---
+status: current
+audience: all
+last_verified: 2026-05-08
+---
+
 # 安全模型
 
 ## 默认策略

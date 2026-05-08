@@ -1,3 +1,9 @@
+---
+status: current
+audience: maintainer
+last_verified: 2026-05-08
+---
+
 # 类型兼容性问题 (Type Compatibility Issues)
 
 本文档记录 pi 生态类型定义与 pi-subagents 实际使用之间的已知差异。

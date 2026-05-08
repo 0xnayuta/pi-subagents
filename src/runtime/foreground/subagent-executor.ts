@@ -78,12 +78,11 @@ function loadAgent(
 }
 
 function filterToolsForReadonly(agent: AgentConfig, config: Required<ExtensionConfig>): string[] {
-  const allowedTools = [
+  const readonlyTools = [
     "read",
     "grep",
     "find",
     "ls",
-    "bash",
     "web_search",
     "fetch_content",
     "get_search_content",
@@ -91,11 +90,11 @@ function filterToolsForReadonly(agent: AgentConfig, config: Required<ExtensionCo
   const configuredTools = agent.tools ?? [];
 
   if (agent.readonly) {
-    return configuredTools.filter((tool) => allowedTools.includes(tool));
+    return configuredTools.filter((tool) => readonlyTools.includes(tool));
   }
 
   if (!config.allowWriteSubagents) {
-    return configuredTools.filter((tool) => allowedTools.includes(tool));
+    return configuredTools.filter((tool) => readonlyTools.includes(tool));
   }
 
   return configuredTools;

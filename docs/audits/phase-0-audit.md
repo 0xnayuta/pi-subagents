@@ -1,3 +1,9 @@
+---
+status: historical
+audience: maintainer
+last_verified: 2026-05-08
+---
+
 # Phase 0 裁剪清单审计报告
 
 > 生成时间: 2026-05-07
@@ -5,7 +11,7 @@
 
 ## 审计范围
 
-基于 `docs/guides/04-implementation-plan.md` Phase 0 定义的必查文件和裁剪清单。
+基于 `docs/audits/simplification-implementation-history.md` Phase 0 定义的必查文件和裁剪清单。
 
 ---
 

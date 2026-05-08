@@ -1,3 +1,9 @@
+---
+status: current
+audience: user
+last_verified: 2026-05-08
+---
+
 # Subagent 工具 API
 
 ## 工具名

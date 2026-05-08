@@ -42,7 +42,7 @@ subagent({ agent: "explorer", task: "Find authentication related code" })
 | Agent | 用途 | 工具 |
 |-------|------|------|
 | `explorer` | 代码导航、文件搜索、架构分析 | read, grep, find, ls |
-| `researcher` | 文档/API 调研、网络搜索 | read, grep, find, ls, web_search, fetch_content |
+| `researcher` | 文档/API 调研、网络搜索 | web_search, fetch_content, get_search_content |
 | `reviewer` | 代码审查、diff 检查 | read, grep, find, ls |
 | `implementer` | 实现规划、patch 计划 | read, grep, find, ls |
 | `tester` | 测试策略、测试用例设计 | read, grep, find, ls |

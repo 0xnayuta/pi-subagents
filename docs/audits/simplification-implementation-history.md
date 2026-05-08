@@ -1,10 +1,20 @@
+---
+status: historical
+audience: maintainer
+last_verified: 2026-05-08
+---
+
 # 简化改造实施计划
 
-本文档基于对当前代码的实际阅读结果修订,作为 `pi-subagents` 简化改造的可执行计划。
+> Status: historical
+>
+> 本文档记录简化改造过程与验收历史，不再作为当前代码结构的 source of truth。当前架构请以 `docs/guides/02-architecture.md`、`src/runtime/`、`src/extension/` 和 `src/agents/` 为准。
 
-## 当前代码事实
+本文档基于简化改造期间的代码阅读结果修订，作为 `pi-subagents` 简化改造的执行记录。
 
-当前项目不是一个简单工具,而是一个完整度较高的多代理编排扩展。主要事实:
+## 改造前代码事实
+
+改造前项目不是一个简单工具，而是一个完整度较高的多代理编排扩展。主要事实:
 
 - 扩展入口在 `src/extension/index.ts`,目前同时注册:
   - `subagent` tool
@@ -236,7 +246,7 @@ validate input
 ### 验收标准 ✅
 
 - [x] `rg "chain|parallel|background|intercom|worktree|slash|tui" src` 仅剩误报 (getuid 包含 uid)
-- [x] `pnpm test` 使用新测试集通过 (158 MVP + 26 unit)
+- [x] `pnpm test:unit` 与 `pnpm test:mvp` 使用新测试集通过
 - [x] package 描述、files、pi 配置与 MVP 一致
 
 ---
@@ -269,8 +279,8 @@ validate input
 
 ### 验收标准 ✅
 
-- [x] `pnpm test:unit` 通过 (26 tests)
-- [x] `pnpm test:mvp` 通过 (158 tests)
+- [x] `pnpm test:unit` 通过
+- [x] `pnpm test:mvp` 通过
 - [x] 测试不再依赖 TUI、slash、async watcher、intercom、worktree
 
 ---
@@ -327,7 +337,7 @@ validate input
 
 ### 维护验证 ✅
 
-- [x] `pnpm test` 通过 (184 tests, 49 suites)
+- [x] `pnpm test:unit` 与 `pnpm test:mvp` 通过
 - [x] `package.json` 元数据准确
 - [x] docs 与代码一致
 - [x] `rg` 检查无旧功能入口残留
