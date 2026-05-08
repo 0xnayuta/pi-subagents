@@ -7,6 +7,7 @@ import { spawn } from "node:child_process";
 import { attachPostExitStdioGuard, trySignalChild } from "../../shared/post-exit-stdio-guard.ts";
 import type { Usage } from "../../shared/types.ts";
 import { getPiSpawnCommand } from "../shared/pi-spawn.ts";
+import { collectOutput } from "./collect-output.ts";
 
 interface RunSyncResult {
   exitCode: number;
@@ -80,14 +81,18 @@ export async function runSync(
 
       exitCode = code ?? (stderr.includes("error") ? 1 : 0);
 
-      // Append stderr to output if there's an error
+      const collected = collectOutput(output);
+      let finalOutput = collected.output;
+
+      // Append stderr to processed output if there's an error
       if (exitCode !== 0 && stderr.trim()) {
-        output += `\n${stderr}`;
+        finalOutput = finalOutput ? `${finalOutput}\n${stderr.trim()}` : stderr.trim();
       }
 
       resolve({
         exitCode,
-        output: output.trim(),
+        output: finalOutput,
+        usage: collected.usage,
       });
     });
 

@@ -245,6 +245,7 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
     const piArgs = buildSubagentChildArgs({
       mode: "json",
       systemPrompt,
+      task: params.task,
       cwd,
       sessionFile,
       model: agent.model,

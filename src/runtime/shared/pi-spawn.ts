@@ -4,6 +4,15 @@ import * as path from "node:path";
 
 const require = createRequire(import.meta.url);
 
+const PI_PACKAGE_NAMES = new Set([
+  "@mariozechner/pi-coding-agent",
+  "@earendil-works/pi-coding-agent",
+]);
+
+function isPiPackageName(name: unknown): boolean {
+  return typeof name === "string" && PI_PACKAGE_NAMES.has(name);
+}
+
 export function resolvePiPackageRoot(): string | undefined {
   try {
     const entry = process.argv[1];
@@ -12,7 +21,7 @@ export function resolvePiPackageRoot(): string | undefined {
     while (dir !== path.dirname(dir)) {
       try {
         const pkg = JSON.parse(fs.readFileSync(path.join(dir, "package.json"), "utf-8"));
-        if (pkg.name === "@mariozechner/pi-coding-agent") return dir;
+        if (isPiPackageName(pkg.name)) return dir;
       } catch {}
       dir = path.dirname(dir);
     }
@@ -47,6 +56,31 @@ function normalizePath(filePath: string): string {
   return path.isAbsolute(filePath) ? filePath : path.resolve(filePath);
 }
 
+function findPiPackageJsonFrom(
+  startDir: string,
+  existsSync: (filePath: string) => boolean
+): string | undefined {
+  let dir = startDir;
+  while (dir !== path.dirname(dir)) {
+    for (const packageName of PI_PACKAGE_NAMES) {
+      const candidate = path.join(dir, "node_modules", ...packageName.split("/"), "package.json");
+      if (existsSync(candidate)) return candidate;
+    }
+    dir = path.dirname(dir);
+  }
+  return undefined;
+}
+
+function defaultResolvePackageJson(existsSync: (filePath: string) => boolean): string {
+  const root = resolvePiPackageRoot();
+  if (root) return path.join(root, "package.json");
+
+  const discovered = findPiPackageJsonFrom(process.cwd(), existsSync);
+  if (discovered) return discovered;
+
+  return require.resolve("@mariozechner/pi-coding-agent/package.json");
+}
+
 export function resolveWindowsPiCliScript(deps: PiSpawnDeps = {}): string | undefined {
   const existsSync = deps.existsSync ?? fs.existsSync;
   const readFileSync =
@@ -66,7 +100,7 @@ export function resolveWindowsPiCliScript(deps: PiSpawnDeps = {}): string | unde
       (() => {
         const root = deps.piPackageRoot ?? resolvePiPackageRoot();
         if (root) return path.join(root, "package.json");
-        return require.resolve("@mariozechner/pi-coding-agent/package.json");
+        return defaultResolvePackageJson(existsSync);
       });
     const packageJsonPath = resolvePackageJson();
     const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8")) as {

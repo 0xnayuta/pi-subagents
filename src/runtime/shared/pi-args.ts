@@ -29,6 +29,7 @@ export function applyThinkingSuffix(
 export function buildSubagentChildArgs(input: {
   mode: "json" | "text";
   systemPrompt: string;
+  task: string;
   cwd: string;
   sessionFile?: string;
   model?: string;
@@ -69,8 +70,15 @@ export function buildSubagentChildArgs(input: {
   fs.writeFileSync(promptPath, input.systemPrompt, { mode: 0o600 });
   args.push("--system-prompt", promptPath);
 
-  // Task (appended after system prompt)
-  // Note: The actual task is included in the system prompt, so no additional task arg needed
+  // Task: include an explicit user prompt so the child CLI runs one agent turn.
+  // The task is also present in the system prompt for role/constraint context.
+  if (input.task.length > TASK_ARG_LIMIT) {
+    const taskFilePath = path.join(tempDir, "task.md");
+    fs.writeFileSync(taskFilePath, `Task: ${input.task}`, { mode: 0o600 });
+    args.push(`@${taskFilePath}`);
+  } else {
+    args.push(`Task: ${input.task}`);
+  }
 
   // Environment
   const env: Record<string, string | undefined> = {
