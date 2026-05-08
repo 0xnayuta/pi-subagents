@@ -37,6 +37,24 @@ subagent({ agent: "explorer", task: "Find authentication related code" })
 - `agent`: 子代理名称
 - `task`: 任务描述
 
+## 内置 Web Tools
+
+本扩展内置极简 readonly web tools，供主代理和 `researcher` 子代理使用：
+
+```ts
+web_search({ query: "TypeScript 5.7 release notes" })
+fetch_content({ url: "https://example.com/docs" })
+get_search_content({ responseId: "...", urlIndex: 0 })
+```
+
+边界：
+
+- `web_search` 第一版使用 Brave Search API，需要 `BRAVE_SEARCH_API_KEY`
+- `fetch_content` 仅支持 `http:` / `https:` 的 `text/html` 和 `text/plain`
+- 内置 web tools 不等同于完整 `pi-web-access`
+- 不支持 YouTube、PDF 专门处理、GitHub clone、登录态/browser cookie、curator UI
+- 结果只保存在内存中，可通过 `responseId` 和 `get_search_content` 取回
+
 ## 内置子代理
 
 | Agent | 用途 | 工具 |
@@ -91,7 +109,15 @@ MVP 版本 **不支持** 以下功能：
   "enabled": true,
   "maxSubagentDepth": 1,
   "timeoutMs": 120000,
-  "allowWriteSubagents": false
+  "allowWriteSubagents": false,
+  "webTools": {
+    "enabled": true,
+    "provider": "brave",
+    "timeoutMs": 10000,
+    "maxResponseBytes": 1048576,
+    "maxContentChars": 30000,
+    "maxResults": 5
+  }
 }
 ```
 

@@ -27,14 +27,16 @@ last_verified: 2026-05-08
 2. [扩展 API 参考](./guides/03-extension-api.md)
 3. [安全模型](./guides/05-security-model.md)
 4. [测试策略](./guides/06-testing.md)
-5. [类型兼容说明](./type-compatibility.md)
-6. [发布前检查清单](./guides/release-checklist.md)
+5. [内置 Web Tools 实施路线（Proposed）](./guides/07-web-tools-implementation-plan.md)
+6. [类型兼容说明](./type-compatibility.md)
+7. [发布前检查清单](./guides/release-checklist.md)
 
 ## 决策记录
 
 - [ADR 0001：采用轻量 foreground subagent 设计](./adr/0001-lightweight-foreground-subagents.md)
 - [ADR 0002：MVP 边界决策](./adr/0002-mvp-boundary-decisions.md)
 - [ADR 0003：自主触发子代理的改进方案（Proposed）](./adr/0003-autonomous-subagent-triggering.md)
+- [ADR 0004：内置极简 readonly web tools（Proposed）](./adr/0004-bundled-readonly-web-tools.md)
 
 ## 历史与审计
 

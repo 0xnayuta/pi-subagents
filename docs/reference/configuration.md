@@ -10,14 +10,22 @@ last_verified: 2026-05-08
 
 `~/.pi/agent/extensions/subagent/config.json`
 
-## MVP 配置字段
+## 配置字段
 
 ```json
 {
   "enabled": true,
   "maxSubagentDepth": 1,
   "timeoutMs": 120000,
-  "allowWriteSubagents": false
+  "allowWriteSubagents": false,
+  "webTools": {
+    "enabled": true,
+    "provider": "brave",
+    "timeoutMs": 10000,
+    "maxResponseBytes": 1048576,
+    "maxContentChars": 30000,
+    "maxResults": 5
+  }
 }
 ```
 
@@ -29,6 +37,12 @@ last_verified: 2026-05-08
 | `maxSubagentDepth` | number | `1` | 子代理递归深度。固定为 1，子代理不能再调子代理 |
 | `timeoutMs` | number | `120000` | 子代理执行超时（毫秒） |
 | `allowWriteSubagents` | boolean | `false` | 是否允许子代理写文件。MVP 默认 false |
+| `webTools.enabled` | boolean | `true` | 是否注册 `web_search` / `fetch_content` / `get_search_content` |
+| `webTools.provider` | string | `"brave"` | 搜索 provider。Phase 1 仅接受 `brave` |
+| `webTools.timeoutMs` | number | `10000` | 单次网络请求超时 |
+| `webTools.maxResponseBytes` | number | `1048576` | 最大读取响应体大小 |
+| `webTools.maxContentChars` | number | `30000` | 最大返回文本长度 |
+| `webTools.maxResults` | number | `5` | 默认搜索结果数量 |
 
 ## MVP 不支持的配置
 

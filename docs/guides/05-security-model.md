@@ -26,6 +26,24 @@ last_verified: 2026-05-08
 - 绝对路径
 - 完整系统 prompt
 
+## 内置 web tools 安全边界
+
+内置 `web_search`、`fetch_content`、`get_search_content` 保持 readonly：
+
+- 仅允许 `http:` / `https:`
+- 禁止 `localhost`、loopback、link-local、private IP
+- 禁止 `file:` 等本地协议
+- 设置请求 timeout
+- 设置最大响应体大小
+- 设置最大输出字符数
+- 限制重定向
+- 默认只处理 HTML/text 内容
+- 不写项目文件；仅使用内存保存 `responseId` 结果
+- `web_search` 第一版仅支持 Brave Search API，需要 `BRAVE_SEARCH_API_KEY`
+- 不支持 browser cookie、登录态抓取、本地文件、GitHub clone、YouTube/视频或 PDF 专门处理
+
+完整设计见 [ADR 0004](../adr/0004-bundled-readonly-web-tools.md)。
+
 ## 写入能力
 
 第一版建议不开放写入。即使是 `implementer` 和 `tester`，也优先返回 patch plan 或测试建议。

@@ -60,6 +60,25 @@ Your job:
 
 自定义 agents 同样使用简单 frontmatter，支持 `name`、`description`、`readonly`、`tools`。
 
+### Web tools
+
+`web_search`、`fetch_content`、`get_search_content` 是本扩展内置的极简 readonly web tools。它们会在主代理进程和子代理进程中注册；子代理进程不会注册 `subagent` 工具。
+
+内置 `researcher` 默认使用这些工具。自定义 readonly agent 也可以在 `tools` 中显式声明它们，例如：
+
+```md
+---
+name: docs-researcher
+description: Project documentation researcher.
+readonly: true
+tools: web_search, fetch_content, get_search_content
+---
+
+You research external documentation and report concise findings.
+```
+
+注意：这些工具只覆盖基础网页搜索和 HTTP/HTTPS HTML/text 抓取，不包含完整 `pi-web-access` 的视频、PDF、GitHub clone、browser cookie 或 curator UI 能力。
+
 不支持：chains、overrides、management actions、packaged agents。
 
 ## 子代理边界
