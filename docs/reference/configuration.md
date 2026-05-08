@@ -24,7 +24,12 @@ last_verified: 2026-05-08
     "timeoutMs": 10000,
     "maxResponseBytes": 1048576,
     "maxContentChars": 30000,
-    "maxResults": 5
+    "maxResults": 5,
+    "enableJinaFallback": false,
+    "jinaTimeoutMs": 8000,
+    "maxStoredResults": 100,
+    "maxStoredContentChars": 200000,
+    "debug": false
   }
 }
 ```
@@ -43,6 +48,11 @@ last_verified: 2026-05-08
 | `webTools.maxResponseBytes` | number | `1048576` | 最大读取响应体大小 |
 | `webTools.maxContentChars` | number | `30000` | 最大返回文本长度 |
 | `webTools.maxResults` | number | `5` | 默认搜索结果数量 |
+| `webTools.enableJinaFallback` | boolean | `false` | 是否在 HTML 提取质量较低时尝试 Jina Reader fallback |
+| `webTools.jinaTimeoutMs` | number | `8000` | Jina Reader fallback 请求超时 |
+| `webTools.maxStoredResults` | number | `100` | 内存缓存最多保留多少个 `responseId` 条目（超出按 FIFO 淘汰） |
+| `webTools.maxStoredContentChars` | number | `200000` | 单条存储内容的最大字符数（超出会在存储阶段截断并标记 truncated） |
+| `webTools.debug` | boolean | `false` | 是否输出 web tools 轻量调试日志（默认关闭） |
 
 ## MVP 不支持的配置
 

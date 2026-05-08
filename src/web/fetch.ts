@@ -1,5 +1,18 @@
 import type { ResolvedExtensionConfig } from "../shared/types.ts";
-import { extractHtml, extractPlainText, truncateContent } from "./extract.ts";
+import { isAbortLikeError, withTimeoutSignal } from "./abort.ts";
+import {
+  extractHeadingTitle,
+  extractHtml,
+  extractPlainText,
+  shouldTryJinaFallback,
+  truncateContent,
+} from "./extract.ts";
+import {
+  recordFetchCall,
+  recordFetchFailure,
+  recordFetchSuccess,
+  webDebugLog,
+} from "./observability.ts";
 import { getWebSecurityLimits, validatePublicHttpUrl } from "./security.ts";
 import { storeResult } from "./storage.ts";
 import type { ExtractedContent, FetchContentInput, WebToolError } from "./types.ts";
@@ -12,6 +25,7 @@ export interface FetchContentSuccess {
 export type FetchContentResult = FetchContentSuccess | WebToolError;
 
 const MAX_REDIRECTS = 5;
+const JINA_READER_BASE = "https://r.jina.ai/";
 
 function normalizeUrls(params: FetchContentInput): string[] {
   const urls = [params.url, ...(params.urls ?? [])]
@@ -83,37 +97,31 @@ async function readLimitedBody(
 async function fetchWithRedirects(
   initialUrl: URL,
   timeoutMs: number,
-  maxResponseBytes: number
+  maxResponseBytes: number,
+  signal?: AbortSignal
 ): Promise<{ response: Response; body: Uint8Array; finalUrl: string; bodyTruncated: boolean }> {
   let currentUrl = initialUrl;
 
   for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    const response = await fetch(currentUrl, {
+      method: "GET",
+      redirect: "manual",
+      signal: withTimeoutSignal(timeoutMs, signal),
+      headers: {
+        accept: "text/html,text/plain;q=0.9,*/*;q=0.1",
+        "user-agent": "pi-subagents-web-tools/0.1",
+      },
+    });
 
-    try {
-      const response = await fetch(currentUrl, {
-        method: "GET",
-        redirect: "manual",
-        signal: controller.signal,
-        headers: {
-          accept: "text/html,text/plain;q=0.9,*/*;q=0.1",
-          "user-agent": "pi-subagents-web-tools/0.1",
-        },
-      });
-
-      if ([301, 302, 303, 307, 308].includes(response.status)) {
-        const location = response.headers.get("location");
-        if (!location) throw new Error(`Redirect without Location header: ${currentUrl.href}`);
-        currentUrl = await validatePublicHttpUrl(new URL(location, currentUrl).href);
-        continue;
-      }
-
-      const { body, truncated } = await readLimitedBody(response, maxResponseBytes);
-      return { response, body, finalUrl: currentUrl.href, bodyTruncated: truncated };
-    } finally {
-      clearTimeout(timeout);
+    if ([301, 302, 303, 307, 308].includes(response.status)) {
+      const location = response.headers.get("location");
+      if (!location) throw new Error(`Redirect without Location header: ${currentUrl.href}`);
+      currentUrl = await validatePublicHttpUrl(new URL(location, currentUrl).href);
+      continue;
     }
+
+    const { body, truncated } = await readLimitedBody(response, maxResponseBytes);
+    return { response, body, finalUrl: currentUrl.href, bodyTruncated: truncated };
   }
 
   throw new Error(`Too many redirects for ${initialUrl.href}`);
@@ -131,16 +139,47 @@ function truncateExtractedContent(
   };
 }
 
+async function fetchFromJinaReader(
+  url: string,
+  timeoutMs: number,
+  signal?: AbortSignal
+): Promise<{ title?: string; content: string } | null> {
+  const response = await fetch(`${JINA_READER_BASE}${url}`, {
+    method: "GET",
+    signal: withTimeoutSignal(timeoutMs, signal),
+    headers: {
+      accept: "text/plain,text/markdown;q=0.9,*/*;q=0.1",
+      "x-no-cache": "true",
+    },
+  });
+
+  if (!response.ok) return null;
+
+  const raw = await response.text();
+  const marker = "Markdown Content:";
+  const content = raw.includes(marker)
+    ? raw.split(marker).slice(1).join(marker).trim()
+    : raw.trim();
+  if (!content) return null;
+
+  return {
+    title: extractHeadingTitle(content),
+    content,
+  };
+}
+
 export async function fetchUrlContent(
   url: string,
-  config: ResolvedExtensionConfig
+  config: ResolvedExtensionConfig,
+  signal?: AbortSignal
 ): Promise<ExtractedContent> {
   const limits = getWebSecurityLimits(config);
   const parsedUrl = await validatePublicHttpUrl(url);
   const { response, body, finalUrl, bodyTruncated } = await fetchWithRedirects(
     parsedUrl,
     limits.timeoutMs,
-    limits.maxResponseBytes
+    limits.maxResponseBytes,
+    signal
   );
 
   if (!response.ok) {
@@ -155,17 +194,38 @@ export async function fetchUrlContent(
 
   const text = new TextDecoder("utf-8", { fatal: false }).decode(body);
   const options = { maxContentChars: Number.MAX_SAFE_INTEGER, contentType };
-  const extracted =
-    supportedType === "html"
-      ? extractHtml(finalUrl, text, options)
-      : extractPlainText(finalUrl, text, options);
+  if (supportedType === "html") {
+    const extracted = extractHtml(finalUrl, text, options);
+    let finalResult = bodyTruncated ? { ...extracted, truncated: true } : extracted;
+
+    if (config.webTools.enableJinaFallback && shouldTryJinaFallback(text, extracted.content)) {
+      const jina = await fetchFromJinaReader(finalUrl, config.webTools.jinaTimeoutMs, signal);
+      if (jina) {
+        finalResult = {
+          ...extractPlainText(finalUrl, jina.content, {
+            maxContentChars: Number.MAX_SAFE_INTEGER,
+            contentType: "text/markdown",
+          }),
+          title: jina.title ?? extracted.title,
+          truncated: bodyTruncated,
+          contentType: "text/markdown; source=jina",
+        };
+      }
+    }
+
+    return finalResult;
+  }
+
+  const extracted = extractPlainText(finalUrl, text, options);
   return bodyTruncated ? { ...extracted, truncated: true } : extracted;
 }
 
 export async function fetchContent(
   params: FetchContentInput,
-  config: ResolvedExtensionConfig
+  config: ResolvedExtensionConfig,
+  signal?: AbortSignal
 ): Promise<FetchContentResult> {
+  recordFetchCall();
   const urls = normalizeUrls(params);
   if (urls.length === 0) {
     return error("INVALID_INPUT", "fetch_content requires url or urls");
@@ -174,7 +234,7 @@ export async function fetchContent(
   try {
     const storedResults: ExtractedContent[] = [];
     for (const url of urls) {
-      storedResults.push(await fetchUrlContent(url, config));
+      storedResults.push(await fetchUrlContent(url, config, signal));
     }
 
     const responseId = storeResult({ type: "fetch", urls: storedResults });
@@ -182,12 +242,20 @@ export async function fetchContent(
     const results = storedResults.map((result) =>
       truncateExtractedContent(result, limits.maxContentChars)
     );
+    recordFetchSuccess();
+    webDebugLog("fetch_content success", { urls: urls.length, responseId });
     return { responseId, results };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    if (message.includes("abort")) {
-      return error("SUBAGENT_TIMEOUT", message);
+    if (isAbortLikeError(err)) {
+      recordFetchFailure("SUBAGENT_TIMEOUT");
+      return error(
+        "SUBAGENT_TIMEOUT",
+        `fetch_content timed out or was aborted. Try fewer URLs or increase webTools.timeoutMs. (${message})`
+      );
     }
+    recordFetchFailure("FETCH_CONTENT_FAILED");
+    webDebugLog("fetch_content failed", { message, urls });
     return error("FETCH_CONTENT_FAILED", message);
   }
 }

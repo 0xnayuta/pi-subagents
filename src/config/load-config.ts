@@ -10,6 +10,11 @@ export const DEFAULT_WEB_TOOLS_CONFIG: Required<WebToolsConfig> = {
   maxResponseBytes: 1048576,
   maxContentChars: 30000,
   maxResults: 5,
+  enableJinaFallback: false,
+  jinaTimeoutMs: 8000,
+  maxStoredResults: 100,
+  maxStoredContentChars: 200000,
+  debug: false,
 };
 
 export const DEFAULT_CONFIG: ResolvedExtensionConfig = {
@@ -68,6 +73,20 @@ function normalizeWebToolsConfig(base: WebToolsConfig | undefined): Required<Web
       DEFAULT_WEB_TOOLS_CONFIG.maxContentChars
     ),
     maxResults: positiveInteger(base?.maxResults, DEFAULT_WEB_TOOLS_CONFIG.maxResults),
+    enableJinaFallback: booleanValue(
+      base?.enableJinaFallback,
+      DEFAULT_WEB_TOOLS_CONFIG.enableJinaFallback
+    ),
+    jinaTimeoutMs: positiveInteger(base?.jinaTimeoutMs, DEFAULT_WEB_TOOLS_CONFIG.jinaTimeoutMs),
+    maxStoredResults: positiveInteger(
+      base?.maxStoredResults,
+      DEFAULT_WEB_TOOLS_CONFIG.maxStoredResults
+    ),
+    maxStoredContentChars: positiveInteger(
+      base?.maxStoredContentChars,
+      DEFAULT_WEB_TOOLS_CONFIG.maxStoredContentChars
+    ),
+    debug: booleanValue(base?.debug, DEFAULT_WEB_TOOLS_CONFIG.debug),
   };
 }
 

@@ -1,5 +1,7 @@
 import type { ExtractedContent } from "./types.ts";
 
+const MIN_USEFUL_HTML_CONTENT = 200;
+
 export interface ExtractOptions {
   maxContentChars: number;
   contentType?: string;
@@ -27,7 +29,7 @@ function decodeHtmlEntities(value: string): string {
     .replace(/&#x2f;/gi, "/");
 }
 
-function normalizeWhitespace(value: string): string {
+export function normalizeWhitespace(value: string): string {
   return value
     .replace(/\r\n/g, "\n")
     .replace(/[ \t]+/g, " ")
@@ -43,6 +45,12 @@ function extractTitle(html: string): string | undefined {
   return title || undefined;
 }
 
+export function extractHeadingTitle(text: string): string | undefined {
+  const match = text.match(/^#{1,2}\s+(.+)/m);
+  if (!match) return undefined;
+  return normalizeWhitespace(match[1].replace(/[*_`]/g, "")) || undefined;
+}
+
 function htmlToText(html: string): string {
   const withoutNoise = html
     .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
@@ -56,6 +64,27 @@ function htmlToText(html: string): string {
     .replace(/<[^>]+>/g, " ");
 
   return normalizeWhitespace(decodeHtmlEntities(withBreaks));
+}
+
+export function isLikelyJsRendered(html: string): boolean {
+  const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+  if (!bodyMatch) return false;
+
+  const bodyHtml = bodyMatch[1];
+  const textContent = normalizeWhitespace(
+    bodyHtml
+      .replace(/<script[\s\S]*?<\/script>/gi, "")
+      .replace(/<style[\s\S]*?<\/style>/gi, "")
+      .replace(/<[^>]+>/g, " ")
+  );
+  const scriptCount = (html.match(/<script/gi) || []).length;
+
+  return textContent.length < MIN_USEFUL_HTML_CONTENT && scriptCount > 3;
+}
+
+export function shouldTryJinaFallback(html: string, extractedContent: string): boolean {
+  if (extractedContent.length < MIN_USEFUL_HTML_CONTENT) return true;
+  return isLikelyJsRendered(html);
 }
 
 export function extractPlainText(

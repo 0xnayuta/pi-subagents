@@ -11,19 +11,12 @@ function braveResponse(urls = ["https://example.com/a", "https://example.com/b"]
   return new Response(
     JSON.stringify({
       web: {
-        results: [
-          {
-            title: "Result A",
-            url: urls[0],
-            description: "Snippet A",
-            profile: { name: "Example" },
-          },
-          {
-            title: "Result B",
-            url: urls[1],
-            description: "Snippet B",
-          },
-        ],
+        results: urls.map((url, i) => ({
+          title: `Result ${i + 1}`,
+          url,
+          description: `Snippet ${i + 1}`,
+          ...(i === 0 ? { profile: { name: "Example" } } : {}),
+        })),
       },
     }),
     {
@@ -70,7 +63,7 @@ describe("web_search", () => {
     const result = await webSearch({ query: "typescript" }, mergeConfig({}));
     assert.equal("error" in result, true);
     if ("error" in result) {
-      assert.equal(result.error.code, "WEB_SEARCH_FAILED");
+      assert.equal(result.error.code, "WEB_SEARCH_AUTH_REQUIRED");
       assert.match(result.error.message, /BRAVE_SEARCH_API_KEY/);
     }
   });
@@ -125,5 +118,74 @@ describe("web_search", () => {
       assert.equal(result.queries[0].results[0].content?.content, "Fetched");
       assert.equal(result.queries[0].results[0].content?.truncated, true);
     }
+  });
+
+  it("classifies provider rate limit errors", async () => {
+    globalThis.fetch = (() =>
+      Promise.resolve(new Response("Too Many Requests", { status: 429, statusText: "Too Many Requests" }))) as typeof fetch;
+
+    const result = await webSearch({ query: "typescript" }, mergeConfig({}));
+    assert.equal("error" in result, true);
+    if ("error" in result) {
+      assert.equal(result.error.code, "WEB_SEARCH_RATE_LIMIT");
+      assert.match(result.error.message, /429/);
+    }
+  });
+
+  it("classifies timeout/abort with actionable guidance", async () => {
+    globalThis.fetch = (() =>
+      new Promise((_resolve, reject) => {
+        setTimeout(() => reject(new DOMException("The operation was aborted", "AbortError")), 5);
+      })) as typeof fetch;
+
+    const result = await webSearch({ query: "typescript" }, mergeConfig({ webTools: { timeoutMs: 1 } }));
+    assert.equal("error" in result, true);
+    if ("error" in result) {
+      assert.equal(result.error.code, "SUBAGENT_TIMEOUT");
+      assert.match(result.error.message, /fewer queries|timeoutMs/i);
+    }
+  });
+
+  it("limits includeContent fetch concurrency", async () => {
+    let active = 0;
+    let maxActive = 0;
+
+    globalThis.fetch = ((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.startsWith("https://api.search.brave.com/")) {
+        return Promise.resolve(
+          braveResponse([
+            "https://93.184.216.34/a",
+            "https://93.184.216.34/b",
+            "https://93.184.216.34/c",
+            "https://93.184.216.34/d",
+            "https://93.184.216.34/e",
+          ])
+        );
+      }
+
+      active += 1;
+      maxActive = Math.max(maxActive, active);
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          active -= 1;
+          resolve(
+            new Response("<html><body>content</body></html>", {
+              status: 200,
+              headers: { "content-type": "text/html" },
+            })
+          );
+        }, 15);
+      });
+    }) as typeof fetch;
+
+    const result = await webSearch(
+      { query: "typescript", numResults: 5, includeContent: true },
+      mergeConfig({})
+    );
+
+    assert.equal("responseId" in result, true);
+    assert.equal(maxActive <= 3, true);
+    assert.equal(maxActive >= 2, true);
   });
 });

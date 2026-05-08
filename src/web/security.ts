@@ -37,16 +37,23 @@ function isPrivateIPv4(address: string): boolean {
 
 function isPrivateIPv6(address: string): boolean {
   const normalized = address.toLowerCase();
-  return (
+
+  if (
     normalized === "::" ||
     normalized === "::1" ||
     normalized.startsWith("fe80:") ||
     normalized.startsWith("fc") ||
-    normalized.startsWith("fd") ||
-    normalized.startsWith("::ffff:127.") ||
-    normalized.startsWith("::ffff:10.") ||
-    normalized.startsWith("::ffff:192.168.")
-  );
+    normalized.startsWith("fd")
+  ) {
+    return true;
+  }
+
+  if (normalized.startsWith("::ffff:")) {
+    const mapped = normalized.slice("::ffff:".length);
+    if (isIP(mapped) === 4) return isPrivateIPv4(mapped);
+  }
+
+  return false;
 }
 
 function isBlockedAddress(address: string): boolean {
@@ -56,9 +63,18 @@ function isBlockedAddress(address: string): boolean {
   return true;
 }
 
+function normalizeHostForIp(hostname: string): string {
+  return hostname.startsWith("[") && hostname.endsWith("]") ? hostname.slice(1, -1) : hostname;
+}
+
 function isBlockedHostname(hostname: string): boolean {
   const normalized = hostname.toLowerCase().replace(/\.$/, "");
-  return normalized === "localhost" || normalized.endsWith(".localhost");
+  return (
+    normalized === "localhost" ||
+    normalized.endsWith(".localhost") ||
+    normalized.endsWith(".local") ||
+    normalized.endsWith(".internal")
+  );
 }
 
 export async function validatePublicHttpUrl(input: string): Promise<URL> {
@@ -77,14 +93,16 @@ export async function validatePublicHttpUrl(input: string): Promise<URL> {
     throw new Error(`Blocked private hostname: ${parsed.hostname}`);
   }
 
-  if (isIP(parsed.hostname)) {
-    if (isBlockedAddress(parsed.hostname)) {
+  const hostForIp = normalizeHostForIp(parsed.hostname);
+
+  if (isIP(hostForIp)) {
+    if (isBlockedAddress(hostForIp)) {
       throw new Error(`Blocked private address: ${parsed.hostname}`);
     }
     return parsed;
   }
 
-  const addresses = await lookup(parsed.hostname, { all: true, verbatim: true });
+  const addresses = await lookup(hostForIp, { all: true, verbatim: true });
   if (addresses.length === 0) {
     throw new Error(`Unable to resolve hostname: ${parsed.hostname}`);
   }

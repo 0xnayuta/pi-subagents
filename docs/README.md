@@ -17,7 +17,8 @@ last_verified: 2026-05-08
 3. [Agent 定义格式](./reference/agent-definition.md)
 4. [配置参考](./reference/configuration.md)
 5. [结果 Schema](./reference/result-schema.md)
-6. [已知问题列表](./known-issues.md)
+6. [Web Tools 错误码](./reference/web-tools-error-codes.md)
+7. [已知问题列表](./known-issues.md)
 
 ## 维护者文档
 
@@ -29,8 +30,9 @@ last_verified: 2026-05-08
 4. [测试策略](./guides/06-testing.md)
 5. [内置 Web Tools 实施路线（Proposed）](./guides/07-web-tools-implementation-plan.md)
 6. [内置 Web Tools 轻量增强清单（Proposed）](./guides/08-web-tools-lightweight-enhancement-backlog.md)
-7. [类型兼容说明](./type-compatibility.md)
-8. [发布前检查清单](./guides/release-checklist.md)
+7. [Web Tools 运行时治理与可观测性](./guides/09-web-tools-runtime-governance-and-observability.md)
+8. [类型兼容说明](./type-compatibility.md)
+9. [发布前检查清单](./guides/release-checklist.md)
 
 ## 决策记录
 

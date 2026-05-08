@@ -33,4 +33,13 @@ describe("fetch_content", () => {
       assert.match(result.error.message, /Blocked private hostname/);
     }
   });
+
+  it("rejects bracketed ipv6 loopback", async () => {
+    const result = await fetchContent({ url: "http://[::1]/" }, config);
+    assert.equal("error" in result, true);
+    if ("error" in result) {
+      assert.equal(result.error.code, "FETCH_CONTENT_FAILED");
+      assert.match(result.error.message, /Blocked private address/);
+    }
+  });
 });

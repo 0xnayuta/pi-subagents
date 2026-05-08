@@ -2,9 +2,17 @@ import type { AgentToolResult } from "@mariozechner/pi-agent-core";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import type { ResolvedExtensionConfig } from "../shared/types.ts";
 import { fetchContent } from "./fetch.ts";
+import { configureWebObservability, resetWebToolStats } from "./observability.ts";
 import { FetchContentParams, GetSearchContentParams, WebSearchParams } from "./schemas.ts";
 import { webSearch } from "./search.ts";
-import { getSearchContent } from "./storage.ts";
+import {
+  WEB_RESULTS_CUSTOM_TYPE,
+  clearResults,
+  getSearchContent,
+  restoreResultsFromSession,
+  setSessionResultAppender,
+  setStorageLimits,
+} from "./storage.ts";
 import type { FetchContentInput, GetSearchContentInput, WebSearchInput } from "./types.ts";
 
 function asToolResult(details: unknown): AgentToolResult<any> {
@@ -20,13 +28,45 @@ function asToolResult(details: unknown): AgentToolResult<any> {
 export function registerWebTools(pi: ExtensionAPI, config: ResolvedExtensionConfig): void {
   if (!config.webTools.enabled) return;
 
+  configureWebObservability(config.webTools.debug);
+  setStorageLimits({
+    maxStoredResults: config.webTools.maxStoredResults,
+    maxStoredContentChars: config.webTools.maxStoredContentChars,
+  });
+
+  const piAny = pi as any;
+  if (typeof piAny.appendEntry === "function") {
+    setSessionResultAppender((data) => {
+      piAny.appendEntry(WEB_RESULTS_CUSTOM_TYPE, data);
+    });
+  } else {
+    setSessionResultAppender(null);
+  }
+
+  if (typeof piAny.on === "function") {
+    piAny.on("session_start", (_event: unknown, ctx: any) => {
+      const branch = ctx?.sessionManager?.getBranch?.();
+      if (Array.isArray(branch)) {
+        restoreResultsFromSession(branch);
+      } else {
+        clearResults();
+      }
+      resetWebToolStats();
+    });
+
+    piAny.on("session_shutdown", () => {
+      clearResults();
+      resetWebToolStats();
+    });
+  }
+
   pi.registerTool({
     name: "web_search",
     label: "Web Search",
     description: "Search the web with the configured readonly search provider.",
     parameters: WebSearchParams as any,
-    execute(_id: string, params: WebSearchInput) {
-      return webSearch(params, config).then(asToolResult);
+    execute(_id: string, params: WebSearchInput, signal: AbortSignal) {
+      return webSearch(params, config, signal).then(asToolResult);
     },
   } as any);
 
@@ -35,8 +75,8 @@ export function registerWebTools(pi: ExtensionAPI, config: ResolvedExtensionConf
     label: "Fetch Content",
     description: "Fetch HTTP/HTTPS URL content and extract readable text. Readonly.",
     parameters: FetchContentParams as any,
-    execute(_id: string, params: FetchContentInput) {
-      return fetchContent(params, config).then(asToolResult);
+    execute(_id: string, params: FetchContentInput, signal: AbortSignal) {
+      return fetchContent(params, config, signal).then(asToolResult);
     },
   } as any);
 

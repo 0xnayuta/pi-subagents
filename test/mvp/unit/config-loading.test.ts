@@ -35,17 +35,33 @@ describe("MVP Config Loading", () => {
 				maxResponseBytes: 1048576,
 				maxContentChars: 30000,
 				maxResults: 5,
+				enableJinaFallback: false,
+				jinaTimeoutMs: 8000,
+				maxStoredResults: 100,
+				maxStoredContentChars: 200000,
+				debug: false,
 			});
 		});
 	});
 
 	describe("Web Tools Configuration", () => {
 		it("merges partial webTools config with defaults", () => {
-			const config = mergeConfig({ webTools: { enabled: false, maxResults: 3 } });
+			const config = mergeConfig({
+				webTools: {
+					enabled: false,
+					maxResults: 3,
+					enableJinaFallback: true,
+					maxStoredResults: 20,
+					debug: true,
+				},
+			});
 			assert.equal(config.webTools.enabled, false);
 			assert.equal(config.webTools.provider, "brave");
 			assert.equal(config.webTools.maxResults, 3);
 			assert.equal(config.webTools.timeoutMs, 10000);
+			assert.equal(config.webTools.enableJinaFallback, true);
+			assert.equal(config.webTools.maxStoredResults, 20);
+			assert.equal(config.webTools.debug, true);
 		});
 
 		it("rejects invalid webTools values", () => {
@@ -57,6 +73,11 @@ describe("MVP Config Loading", () => {
 					maxResponseBytes: -1,
 					maxContentChars: 1.5,
 					maxResults: 0,
+					enableJinaFallback: "yes" as any,
+					jinaTimeoutMs: 0,
+					maxStoredResults: 0,
+					maxStoredContentChars: -1,
+					debug: "true" as any,
 				},
 			});
 			assert.deepEqual(config.webTools, DEFAULT_CONFIG.webTools);

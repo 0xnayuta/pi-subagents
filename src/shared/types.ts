@@ -139,6 +139,11 @@ export interface WebToolsConfig {
   maxResponseBytes?: number;
   maxContentChars?: number;
   maxResults?: number;
+  enableJinaFallback?: boolean;
+  jinaTimeoutMs?: number;
+  maxStoredResults?: number;
+  maxStoredContentChars?: number;
+  debug?: boolean;
 }
 
 export interface ExtensionConfig {

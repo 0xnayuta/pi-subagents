@@ -70,6 +70,12 @@ last_verified: 2026-05-08
 }
 ```
 
+## Web tools 错误码
+
+内置 web tools（`web_search` / `fetch_content` / `get_search_content`）的错误码列表见：
+
+- [Web Tools 错误码](./web-tools-error-codes.md)
+
 ## 输出要求
 
 - 结构稳定
