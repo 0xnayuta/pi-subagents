@@ -114,3 +114,103 @@ renderResult(result, options, theme, context) {
 2. **防御性内容提取**：使用类型守卫确保安全
 
 3. **`renderCall` 同步修复**：使用相同模式
+
+## KI-002: 子代理返回原始 JSONL 而不是最终回答 — ✅ 已修复
+
+**发现时间**: 2026-05-08
+**严重程度**: 高
+**影响范围**: `subagent` 工具结果、TUI 显示、调用方消费子代理输出
+
+### 症状
+
+调用子代理后，工具结果不是 explorer/reviewer 等子代理的最终回答，而是大量 `pi --mode json` 事件流，例如：
+
+```jsonl
+{"type":"session","version":3,"id":"...","cwd":"G:\\source\\repos\\pi-subagents"}
+{"type":"agent_start"}
+{"type":"turn_start"}
+{"type":"message_start","message":{"role":"user","content":[{"type":"text","text":"Task: ..."}]}}
+{"type":"tool_execution_start",...}
+{"type":"tool_execution_end",...}
+```
+
+这会导致：
+
+- 子代理结果非常大，甚至被截断
+- 主代理无法直接读取子代理最终结论
+- TUI/工具结果显示被 JSONL 事件噪声淹没
+
+### 根因分析
+
+**文件**: `src/runtime/foreground/execution.ts`、`src/runtime/foreground/collect-output.ts`
+
+`runSync()` 直接返回子进程 stdout：
+
+```typescript
+resolve({
+    exitCode,
+    output: output.trim(),
+});
+```
+
+但子进程使用的是 pi JSON 模式，stdout 是 JSONL 事件流，不是最终文本。原有 `collect-output.ts` 虽然存在，但没有接入 `runSync()`；同时旧的 `extractFinalOutput()` 只支持 mock/legacy 格式：
+
+```typescript
+message.type === "result" && typeof message.output === "string"
+```
+
+真实 pi 事件流中的最终 assistant 内容位于 `turn_end` 或 `message_end` 的 `message.content[].text` 中，因此无法被提取。
+
+### 修复说明 (2026-05-08)
+
+**问题已修复**，修复内容：
+
+1. **在执行层接入输出收集**
+
+   `src/runtime/foreground/execution.ts` 在子进程关闭后调用 `collectOutput(output)`，返回清洗后的最终文本和 usage：
+
+   ```typescript
+   const collected = collectOutput(output);
+   let finalOutput = collected.output;
+   ```
+
+2. **支持真实 pi JSONL 事件格式**
+
+   `src/runtime/foreground/collect-output.ts` 现在会优先从以下事件提取最终 assistant 文本：
+
+   - `turn_end.message.content[].text`
+   - `message_end.message.content[].text`
+   - 兼容旧格式 `result.output`
+
+3. **避免再次返回整段 JSONL**
+
+   如果 JSONL 中没有可提取的最终 assistant 文本，返回短诊断信息，而不是完整原始事件流。
+
+4. **补充单元测试**
+
+   新增 `test/unit/collect-output.test.ts`，覆盖：
+
+   - 从 `turn_end` 提取最终文本
+   - legacy `result.output` fallback
+   - 无最终文本时返回短诊断
+   - 非 JSON 输出保持原样
+   - usage 提取与归一化
+
+### 验证
+
+已通过：
+
+```bash
+npx tsc --noEmit
+npx biome check src/runtime/foreground/collect-output.ts src/runtime/foreground/execution.ts
+node --experimental-strip-types --test test/unit/collect-output.test.ts
+find test/unit -name "*.test.ts" -print0 | xargs -0 node --experimental-strip-types --test
+```
+
+重启 pi 后实际调用 `explorer` 搜索 authentication 相关代码，结果已返回干净的最终回答，不再输出原始 JSONL。
+
+### 相关文件
+
+- `src/runtime/foreground/execution.ts` — 接入 `collectOutput()`
+- `src/runtime/foreground/collect-output.ts` — JSONL 解析、最终文本提取、usage 提取
+- `test/unit/collect-output.test.ts` — 回归测试
