@@ -58,16 +58,22 @@ agents/           # 5 个内置 agent 定义
 ## 开发命令
 
 ```bash
-# 构建与类型检查
-pnpm build && pnpm typecheck
+# 类型检查（报告现有类型问题）
+pnpm typecheck
+
+# 代码检查
+pnpm lint
+
+# 代码格式化
+pnpm format
+
+# 一键格式化 + 检查
+pnpm lint:fix
 
 # 测试
 pnpm test
 pnpm test:unit
-pnpm test:integration
-
-# 代码质量
-pnpm lint && pnpm format
+pnpm test:mvp
 ```
 
 ### 验证命令

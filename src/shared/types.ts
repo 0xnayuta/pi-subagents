@@ -14,17 +14,17 @@ import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
 export type BuiltinSubagentName = "explorer" | "researcher" | "reviewer" | "implementer" | "tester";
 
 export interface MaxOutputConfig {
-	bytes?: number;
-	lines?: number;
+  bytes?: number;
+  lines?: number;
 }
 
 export interface Usage {
-	input: number;
-	output: number;
-	cacheRead: number;
-	cacheWrite: number;
-	cost: number;
-	turns: number;
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+  cost: number;
+  turns: number;
 }
 
 // ============================================================================
@@ -32,13 +32,13 @@ export interface Usage {
 // ============================================================================
 
 export interface AgentDefinition {
-	name: string;
-	description: string;
-	readonly: boolean;
-	tools: string[];
-	prompt: string;
-	source: "builtin" | "user" | "project";
-	filePath: string;
+  name: string;
+  description: string;
+  readonly: boolean;
+  tools: string[];
+  prompt: string;
+  source: "builtin" | "user" | "project";
+  filePath: string;
 }
 
 // ============================================================================
@@ -46,46 +46,46 @@ export interface AgentDefinition {
 // ============================================================================
 
 export const MVP_ERROR_CODES = {
-	INVALID_INPUT: "INVALID_INPUT",
-	SUBAGENTS_DISABLED: "SUBAGENTS_DISABLED",
-	UNKNOWN_AGENT: "UNKNOWN_AGENT",
-	SUBAGENT_DISABLED: "SUBAGENT_DISABLED",
-	SUBAGENT_DEPTH_EXCEEDED: "SUBAGENT_DEPTH_EXCEEDED",
-	SUBAGENT_TIMEOUT: "SUBAGENT_TIMEOUT",
-	SUBAGENT_FAILED: "SUBAGENT_FAILED",
-	SUBAGENT_OUTPUT_TRUNCATED: "SUBAGENT_OUTPUT_TRUNCATED",
+  INVALID_INPUT: "INVALID_INPUT",
+  SUBAGENTS_DISABLED: "SUBAGENTS_DISABLED",
+  UNKNOWN_AGENT: "UNKNOWN_AGENT",
+  SUBAGENT_DISABLED: "SUBAGENT_DISABLED",
+  SUBAGENT_DEPTH_EXCEEDED: "SUBAGENT_DEPTH_EXCEEDED",
+  SUBAGENT_TIMEOUT: "SUBAGENT_TIMEOUT",
+  SUBAGENT_FAILED: "SUBAGENT_FAILED",
+  SUBAGENT_OUTPUT_TRUNCATED: "SUBAGENT_OUTPUT_TRUNCATED",
 } as const;
 
-export type MvpErrorCode = typeof MVP_ERROR_CODES[keyof typeof MVP_ERROR_CODES];
+export type MvpErrorCode = (typeof MVP_ERROR_CODES)[keyof typeof MVP_ERROR_CODES];
 
 // ============================================================================
 // Results
 // ============================================================================
 
 export interface SubagentSuccessResult {
-	ok: true;
-	output: string;
-	usage?: Usage;
+  ok: true;
+  output: string;
+  usage?: Usage;
 }
 
 export interface SubagentErrorResult {
-	ok: false;
-	error: {
-		code: string;
-		message: string;
-	};
+  ok: false;
+  error: {
+    code: string;
+    message: string;
+  };
 }
 
 export type SubagentResult = SubagentSuccessResult | SubagentErrorResult;
 
 export interface SingleResult {
-	agent: string;
-	task: string;
-	exitCode: number;
-	usage: Usage;
-	error?: string;
-	sessionFile?: string;
-	output?: string;
+  agent: string;
+  task: string;
+  exitCode: number;
+  usage: Usage;
+  error?: string;
+  sessionFile?: string;
+  output?: string;
 }
 
 // ============================================================================
@@ -93,14 +93,14 @@ export interface SingleResult {
 // ============================================================================
 
 export interface Details {
-	mode: "single";
-	runId?: string;
-	results: SingleResult[];
-	// Optional structured result for error handling
-	error?: {
-		code: MvpErrorCode;
-		message: string;
-	};
+  mode: "single";
+  runId?: string;
+  results: SingleResult[];
+  // Optional structured result for error handling
+  error?: {
+    code: MvpErrorCode;
+    message: string;
+  };
 }
 
 // ============================================================================
@@ -108,9 +108,9 @@ export interface Details {
 // ============================================================================
 
 export interface SubagentState {
-	baseCwd: string;
-	currentSessionId: string | null;
-	lastUiContext: ExtensionContext | null;
+  baseCwd: string;
+  currentSessionId: string | null;
+  lastUiContext: ExtensionContext | null;
 }
 
 // ============================================================================
@@ -118,10 +118,10 @@ export interface SubagentState {
 // ============================================================================
 
 export interface ExtensionConfig {
-	enabled?: boolean;
-	maxSubagentDepth?: number;
-	timeoutMs?: number;
-	allowWriteSubagents?: boolean;
+  enabled?: boolean;
+  maxSubagentDepth?: number;
+  timeoutMs?: number;
+  allowWriteSubagents?: boolean;
 }
 
 // ============================================================================
@@ -141,46 +141,54 @@ export const PI_SUBAGENT_DEPTH = "PI_SUBAGENT_DEPTH";
 export const PI_SUBAGENT_MAX_DEPTH = "PI_SUBAGENT_MAX_DEPTH";
 
 export const DEFAULT_FORK_PREAMBLE =
-	"You are a delegated subagent running from a fork of the parent session. " +
-	"Treat the inherited conversation as reference-only context, not a live thread to continue. " +
-	"Do not continue or answer prior messages as if they are waiting for a reply. " +
-	"Your sole job is to execute the task below and return a focused result for that task using your tools.";
+  "You are a delegated subagent running from a fork of the parent session. " +
+  "Treat the inherited conversation as reference-only context, not a live thread to continue. " +
+  "Do not continue or answer prior messages as if they are waiting for a reply. " +
+  "Your sole job is to execute the task below and return a focused result for that task using your tools.";
 
 // ============================================================================
 // Recursion Depth Guard
 // ============================================================================
 
 export function normalizeMaxSubagentDepth(value: unknown): number | undefined {
-	if (typeof value === "number" && Number.isInteger(value) && value >= 0) {
-		return value;
-	}
-	if (typeof value === "string") {
-		const parsed = Number(value);
-		if (Number.isInteger(parsed) && parsed >= 0) return parsed;
-	}
-	return undefined;
+  if (typeof value === "number" && Number.isInteger(value) && value >= 0) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    if (Number.isInteger(parsed) && parsed >= 0) return parsed;
+  }
+  return undefined;
 }
 
 export function resolveCurrentMaxSubagentDepth(configMaxDepth?: number): number {
-	return normalizeMaxSubagentDepth(process.env[PI_SUBAGENT_MAX_DEPTH])
-		?? normalizeMaxSubagentDepth(configMaxDepth)
-		?? DEFAULT_SUBAGENT_MAX_DEPTH;
+  return (
+    normalizeMaxSubagentDepth(process.env[PI_SUBAGENT_MAX_DEPTH]) ??
+    normalizeMaxSubagentDepth(configMaxDepth) ??
+    DEFAULT_SUBAGENT_MAX_DEPTH
+  );
 }
 
-export function checkSubagentDepth(configMaxDepth?: number): { blocked: boolean; depth: number; maxDepth: number } {
-	const depth = Number(process.env[PI_SUBAGENT_DEPTH] ?? "0");
-	const maxDepth = resolveCurrentMaxSubagentDepth(configMaxDepth);
-	const blocked = Number.isFinite(depth) && depth >= maxDepth;
-	return { blocked, depth, maxDepth };
+export function checkSubagentDepth(configMaxDepth?: number): {
+  blocked: boolean;
+  depth: number;
+  maxDepth: number;
+} {
+  const depth = Number(process.env[PI_SUBAGENT_DEPTH] ?? "0");
+  const maxDepth = resolveCurrentMaxSubagentDepth(configMaxDepth);
+  const blocked = Number.isFinite(depth) && depth >= maxDepth;
+  return { blocked, depth, maxDepth };
 }
 
 export function getSubagentDepthEnv(maxDepth?: number): Record<string, string> {
-	const parentDepth = Number(process.env[PI_SUBAGENT_DEPTH] ?? "0");
-	const nextDepth = Number.isFinite(parentDepth) ? parentDepth + 1 : 1;
-	return {
-		[PI_SUBAGENT_DEPTH]: String(nextDepth),
-		[PI_SUBAGENT_MAX_DEPTH]: String(normalizeMaxSubagentDepth(maxDepth) ?? resolveCurrentMaxSubagentDepth()),
-	};
+  const parentDepth = Number(process.env[PI_SUBAGENT_DEPTH] ?? "0");
+  const nextDepth = Number.isFinite(parentDepth) ? parentDepth + 1 : 1;
+  return {
+    [PI_SUBAGENT_DEPTH]: String(nextDepth),
+    [PI_SUBAGENT_MAX_DEPTH]: String(
+      normalizeMaxSubagentDepth(maxDepth) ?? resolveCurrentMaxSubagentDepth()
+    ),
+  };
 }
 
 // ============================================================================
@@ -188,36 +196,35 @@ export function getSubagentDepthEnv(maxDepth?: number): Record<string, string> {
 // ============================================================================
 
 function sanitizeTempScopeSegment(value: string): string {
-	const sanitized = value
-		.trim()
-		.replace(/[^A-Za-z0-9._-]+/g, "-")
-		.replace(/^-+|-+$/g, "");
-	return sanitized || "unknown";
+  const sanitized = value
+    .trim()
+    .replace(/[^A-Za-z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return sanitized || "unknown";
 }
 
 export function resolveTempScopeId(options?: {
-	env?: NodeJS.ProcessEnv;
-	getuid?: (() => number) | undefined;
-	userInfo?: (() => { username?: string | null }) | undefined;
-	homedir?: (() => string) | undefined;
+  env?: NodeJS.ProcessEnv;
+  getuid?: (() => number) | undefined;
+  userInfo?: (() => { username?: string | null }) | undefined;
+  homedir?: (() => string) | undefined;
 }): string {
-	const env = options?.env ?? process.env;
-	const getuid = options && Object.hasOwn(options, "getuid")
-		? options.getuid
-		: process.getuid?.bind(process);
-	if (typeof getuid === "function") {
-		return `uid-${getuid()}`;
-	}
+  const env = options?.env ?? process.env;
+  const getuid =
+    options && Object.hasOwn(options, "getuid") ? options.getuid : process.getuid?.bind(process);
+  if (typeof getuid === "function") {
+    return `uid-${getuid()}`;
+  }
 
-	for (const key of ["USERNAME", "USER", "LOGNAME"] as const) {
-		const value = env[key];
-		if (value) return `user-${sanitizeTempScopeSegment(value)}`;
-	}
+  for (const key of ["USERNAME", "USER", "LOGNAME"] as const) {
+    const value = env[key];
+    if (value) return `user-${sanitizeTempScopeSegment(value)}`;
+  }
 
-	const homedir = env.USERPROFILE ?? env.HOME;
-	if (homedir) return `home-${sanitizeTempScopeSegment(homedir)}`;
+  const homedir = env.USERPROFILE ?? env.HOME;
+  if (homedir) return `home-${sanitizeTempScopeSegment(homedir)}`;
 
-	return "shared";
+  return "shared";
 }
 
 // ============================================================================
@@ -225,59 +232,59 @@ export function resolveTempScopeId(options?: {
 // ============================================================================
 
 function formatBytes(bytes: number): string {
-	if (bytes < 1024) return `${bytes}B`;
-	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
-	return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
 interface TruncationResult {
-	text: string;
-	truncated: boolean;
-	originalBytes?: number;
-	originalLines?: number;
+  text: string;
+  truncated: boolean;
+  originalBytes?: number;
+  originalLines?: number;
 }
 
 export const DEFAULT_MAX_OUTPUT: Required<MaxOutputConfig> = {
-	bytes: 200 * 1024,
-	lines: 5000,
+  bytes: 200 * 1024,
+  lines: 5000,
 };
 
 export function truncateOutput(
-	output: string,
-	config: Required<MaxOutputConfig>,
+  output: string,
+  config: Required<MaxOutputConfig>
 ): TruncationResult {
-	const lines = output.split("\n");
-	const bytes = Buffer.byteLength(output, "utf-8");
+  const lines = output.split("\n");
+  const bytes = Buffer.byteLength(output, "utf-8");
 
-	if (bytes <= config.bytes && lines.length <= config.lines) {
-		return { text: output, truncated: false };
-	}
+  if (bytes <= config.bytes && lines.length <= config.lines) {
+    return { text: output, truncated: false };
+  }
 
-	let truncatedLines = lines;
-	if (lines.length > config.lines) {
-		truncatedLines = lines.slice(0, config.lines);
-	}
+  let truncatedLines = lines;
+  if (lines.length > config.lines) {
+    truncatedLines = lines.slice(0, config.lines);
+  }
 
-	let result = truncatedLines.join("\n");
-	if (Buffer.byteLength(result, "utf-8") > config.bytes) {
-		let low = 0;
-		let high = result.length;
-		while (low < high) {
-			const mid = Math.floor((low + high + 1) / 2);
-			if (Buffer.byteLength(result.slice(0, mid), "utf-8") <= config.bytes) {
-				low = mid;
-			} else {
-				high = mid - 1;
-			}
-		}
-		result = result.slice(0, low);
-	}
+  let result = truncatedLines.join("\n");
+  if (Buffer.byteLength(result, "utf-8") > config.bytes) {
+    let low = 0;
+    let high = result.length;
+    while (low < high) {
+      const mid = Math.floor((low + high + 1) / 2);
+      if (Buffer.byteLength(result.slice(0, mid), "utf-8") <= config.bytes) {
+        low = mid;
+      } else {
+        high = mid - 1;
+      }
+    }
+    result = result.slice(0, low);
+  }
 
-	const keptLines = result.split("\n").length;
-	return {
-		text: `[TRUNCATED: showing first ${keptLines} of ${lines.length} lines, ${formatBytes(Buffer.byteLength(result))} of ${formatBytes(bytes)}]\n${result}`,
-		truncated: true,
-		originalBytes: bytes,
-		originalLines: lines.length,
-	};
+  const keptLines = result.split("\n").length;
+  return {
+    text: `[TRUNCATED: showing first ${keptLines} of ${lines.length} lines, ${formatBytes(Buffer.byteLength(result))} of ${formatBytes(bytes)}]\n${result}`,
+    truncated: true,
+    originalBytes: bytes,
+    originalLines: lines.length,
+  };
 }

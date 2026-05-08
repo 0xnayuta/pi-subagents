@@ -10,141 +10,141 @@ import { getPiSpawnCommand } from "../shared/pi-spawn.ts";
 import { attachPostExitStdioGuard, trySignalChild } from "../../shared/post-exit-stdio-guard.ts";
 
 interface RunSyncResult {
-	exitCode: number;
-	output: string;
-	usage?: Usage;
+  exitCode: number;
+  output: string;
+  usage?: Usage;
 }
 
 interface RunSyncOptions {
-	signal?: AbortSignal;
-	env?: Record<string, string | undefined>;
-	onUpdate?: (update: { content: unknown }) => void;
+  signal?: AbortSignal;
+  env?: Record<string, string | undefined>;
+  onUpdate?: (update: { content: unknown }) => void;
 }
 
 export async function runSync(
-	cwd: string,
-	args: string[],
-	options: RunSyncOptions = {},
+  cwd: string,
+  args: string[],
+  options: RunSyncOptions = {}
 ): Promise<RunSyncResult> {
-	const { signal, env, onUpdate } = options;
-	const { command, args: spawnArgs } = getPiSpawnCommand(args);
+  const { signal, env, onUpdate } = options;
+  const { command, args: spawnArgs } = getPiSpawnCommand(args);
 
-	return new Promise((resolve) => {
-		let output = "";
-		let stderr = "";
-		let exitCode = 0;
+  return new Promise((resolve) => {
+    let output = "";
+    let stderr = "";
+    let exitCode = 0;
 
-		const child = spawn(command, spawnArgs, {
-			cwd,
-			stdio: ["ignore", "pipe", "pipe"],
-			env: { ...process.env, ...env },
-			detached: false,
-		});
+    const child = spawn(command, spawnArgs, {
+      cwd,
+      stdio: ["ignore", "pipe", "pipe"],
+      env: { ...process.env, ...env },
+      detached: false,
+    });
 
-		// Set up post-exit guard for Windows
-		const cleanup = attachPostExitStdioGuard(child);
+    // Set up post-exit guard for Windows
+    const cleanup = attachPostExitStdioGuard(child);
 
-		// Handle signal
-		const handleAbort = () => {
-			trySignalChild(child);
-		};
+    // Handle signal
+    const handleAbort = () => {
+      trySignalChild(child);
+    };
 
-		signal?.addEventListener("abort", handleAbort);
+    signal?.addEventListener("abort", handleAbort);
 
-		// Collect stdout
-		child.stdout?.on("data", (data: Buffer) => {
-			const text = data.toString("utf-8");
-			output += text;
+    // Collect stdout
+    child.stdout?.on("data", (data: Buffer) => {
+      const text = data.toString("utf-8");
+      output += text;
 
-			// Try to parse JSON messages for updates
-			const lines = text.split("\n").filter((line) => line.trim());
-			for (const line of lines) {
-				try {
-					const parsed = JSON.parse(line);
-					if (parsed.type === "progress" || parsed.type === "update") {
-						onUpdate?.({ content: parsed });
-					}
-				} catch {
-					// Not JSON, ignore
-				}
-			}
-		});
+      // Try to parse JSON messages for updates
+      const lines = text.split("\n").filter((line) => line.trim());
+      for (const line of lines) {
+        try {
+          const parsed = JSON.parse(line);
+          if (parsed.type === "progress" || parsed.type === "update") {
+            onUpdate?.({ content: parsed });
+          }
+        } catch {
+          // Not JSON, ignore
+        }
+      }
+    });
 
-		// Collect stderr
-		child.stderr?.on("data", (data: Buffer) => {
-			stderr += data.toString("utf-8");
-		});
+    // Collect stderr
+    child.stderr?.on("data", (data: Buffer) => {
+      stderr += data.toString("utf-8");
+    });
 
-		child.on("close", (code) => {
-			signal?.removeEventListener("abort", handleAbort);
-			cleanup();
+    child.on("close", (code) => {
+      signal?.removeEventListener("abort", handleAbort);
+      cleanup();
 
-			exitCode = code ?? (stderr.includes("error") ? 1 : 0);
+      exitCode = code ?? (stderr.includes("error") ? 1 : 0);
 
-			// Append stderr to output if there's an error
-			if (exitCode !== 0 && stderr.trim()) {
-				output += `\n${stderr}`;
-			}
+      // Append stderr to output if there's an error
+      if (exitCode !== 0 && stderr.trim()) {
+        output += `\n${stderr}`;
+      }
 
-			resolve({
-				exitCode,
-				output: output.trim(),
-			});
-		});
+      resolve({
+        exitCode,
+        output: output.trim(),
+      });
+    });
 
-		child.on("error", (error) => {
-			signal?.removeEventListener("abort", handleAbort);
-			cleanup();
+    child.on("error", (error) => {
+      signal?.removeEventListener("abort", handleAbort);
+      cleanup();
 
-			resolve({
-				exitCode: 1,
-				output: `Failed to spawn pi: ${error.message}`,
-			});
-		});
-	});
+      resolve({
+        exitCode: 1,
+        output: `Failed to spawn pi: ${error.message}`,
+      });
+    });
+  });
 }
 
 /**
  * Simple child process spawning for pi
  */
 export function spawnPi(
-	cwd: string,
-	args: string[],
-	options: {
-		signal?: AbortSignal;
-		onStdout?: (data: string) => void;
-		onStderr?: (data: string) => void;
-		onClose?: (code: number | null) => void;
-	} = {},
+  cwd: string,
+  args: string[],
+  options: {
+    signal?: AbortSignal;
+    onStdout?: (data: string) => void;
+    onStderr?: (data: string) => void;
+    onClose?: (code: number | null) => void;
+  } = {}
 ): ReturnType<typeof spawn> {
-	const { command, args: spawnArgs } = getPiSpawnCommand(args);
+  const { command, args: spawnArgs } = getPiSpawnCommand(args);
 
-	const child = spawn(command, spawnArgs, {
-		cwd,
-		stdio: ["ignore", "pipe", "pipe"],
-		env: process.env,
-		detached: false,
-	});
+  const child = spawn(command, spawnArgs, {
+    cwd,
+    stdio: ["ignore", "pipe", "pipe"],
+    env: process.env,
+    detached: false,
+  });
 
-	const cleanup = attachPostExitStdioGuard(child);
+  const cleanup = attachPostExitStdioGuard(child);
 
-	options.signal?.addEventListener("abort", () => {
-		trySignalChild(child);
-	});
+  options.signal?.addEventListener("abort", () => {
+    trySignalChild(child);
+  });
 
-	child.stdout?.on("data", (data: Buffer) => {
-		options.onStdout?.(data.toString("utf-8"));
-	});
+  child.stdout?.on("data", (data: Buffer) => {
+    options.onStdout?.(data.toString("utf-8"));
+  });
 
-	child.stderr?.on("data", (data: Buffer) => {
-		options.onStderr?.(data.toString("utf-8"));
-	});
+  child.stderr?.on("data", (data: Buffer) => {
+    options.onStderr?.(data.toString("utf-8"));
+  });
 
-	child.on("close", (code) => {
-		options.signal?.removeEventListener("abort", () => trySignalChild(child));
-		cleanup();
-		options.onClose?.(code);
-	});
+  child.on("close", (code) => {
+    options.signal?.removeEventListener("abort", () => trySignalChild(child));
+    cleanup();
+    options.onClose?.(code);
+  });
 
-	return child;
+  return child;
 }
