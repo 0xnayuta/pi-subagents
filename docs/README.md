@@ -28,8 +28,9 @@ last_verified: 2026-05-08
 3. [安全模型](./guides/05-security-model.md)
 4. [测试策略](./guides/06-testing.md)
 5. [内置 Web Tools 实施路线（Proposed）](./guides/07-web-tools-implementation-plan.md)
-6. [类型兼容说明](./type-compatibility.md)
-7. [发布前检查清单](./guides/release-checklist.md)
+6. [内置 Web Tools 轻量增强清单（Proposed）](./guides/08-web-tools-lightweight-enhancement-backlog.md)
+7. [类型兼容说明](./type-compatibility.md)
+8. [发布前检查清单](./guides/release-checklist.md)
 
 ## 决策记录
 
