@@ -12,12 +12,12 @@ import type { AgentConfig, AgentScope } from "../../agents/agents.ts";
 import {
   DEFAULT_MAX_OUTPUT,
   type Details,
-  type ExtensionConfig,
   MVP_ERROR_CODES,
   type MvpErrorCode,
   PI_SUBAGENT_CHILD,
   PI_SUBAGENT_DEPTH,
   PI_SUBAGENT_MAX_DEPTH,
+  type ResolvedExtensionConfig,
   type SingleResult,
   type SubagentState,
   type Usage,
@@ -37,7 +37,7 @@ export interface SubagentParamsLike {
 interface ExecutorDeps {
   pi: ExtensionAPI;
   state: SubagentState;
-  config: Required<ExtensionConfig>;
+  config: ResolvedExtensionConfig;
   getSubagentSessionRoot: (parentSessionFile: string | null) => string;
   discoverAgents: (cwd: string, scope: AgentScope) => { agents: AgentConfig[] };
 }
@@ -77,7 +77,7 @@ function loadAgent(
   return agent;
 }
 
-function filterToolsForReadonly(agent: AgentConfig, config: Required<ExtensionConfig>): string[] {
+function filterToolsForReadonly(agent: AgentConfig, config: ResolvedExtensionConfig): string[] {
   const readonlyTools = [
     "read",
     "grep",

@@ -1,8 +1,8 @@
 /**
  * Minimal Subagent Extension Entry Point
  *
- * This extension registers a single 'subagent' tool that delegates
- * focused tasks to specialized readonly agents.
+ * This extension registers bundled readonly web tools and a single
+ * 'subagent' tool that delegates focused tasks to specialized readonly agents.
  *
  * Features:
  * - Foreground single execution only
@@ -12,12 +12,12 @@
  */
 
 import * as fs from "node:fs";
-import * as os from "node:os";
 import * as path from "node:path";
 import type { AgentToolResult } from "@mariozechner/pi-agent-core";
 import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
 import { Text } from "@mariozechner/pi-tui";
 import { discoverAgents } from "../agents/agents.ts";
+import { loadConfig, mergeConfig } from "../config/load-config.ts";
 import {
   type SubagentParamsLike,
   createSubagentExecutor,
@@ -25,13 +25,13 @@ import {
 import { resolveCurrentSessionId } from "../shared/session-identity.ts";
 import {
   type Details,
-  type ExtensionConfig,
   MVP_ERROR_CODES,
   PI_SUBAGENT_CHILD,
   RESULTS_DIR,
   type SubagentState,
   checkSubagentDepth,
 } from "../shared/types.ts";
+import { registerWebTools } from "../web/index.ts";
 import { SubagentParams } from "./schemas.ts";
 
 /**
@@ -54,47 +54,19 @@ function ensureAccessibleDir(dirPath: string): void {
   fs.mkdirSync(dirPath, { recursive: true });
 }
 
-/**
- * Load extension configuration from config.json
- */
-function loadConfig(): ExtensionConfig {
-  const configPath = path.join(
-    process.env.HOME ?? os.homedir(),
-    ".pi",
-    "agent",
-    "extensions",
-    "subagent",
-    "config.json"
-  );
-  try {
-    if (fs.existsSync(configPath)) {
-      return JSON.parse(fs.readFileSync(configPath, "utf-8")) as ExtensionConfig;
-    }
-  } catch (error) {
-    console.error(`Failed to load subagent config from '${configPath}':`, error);
-  }
-  return {};
-}
-
-function mergeConfig(base: ExtensionConfig): Required<ExtensionConfig> {
-  return {
-    enabled: base.enabled ?? true,
-    maxSubagentDepth: base.maxSubagentDepth ?? 1,
-    timeoutMs: base.timeoutMs ?? 120000,
-    allowWriteSubagents: base.allowWriteSubagents ?? false,
-  };
-}
-
 export default function registerSubagentExtension(pi: ExtensionAPI): void {
-  // Prevent child processes from registering this extension
+  // Load configuration
+  const config = loadConfig();
+  const effectiveConfig = mergeConfig(config);
+
+  // Web tools are available in both parent and child processes.
+  registerWebTools(pi, effectiveConfig);
+
+  // Prevent child processes from registering the subagent tool.
   if (process.env[PI_SUBAGENT_CHILD] === "1") return;
 
   // Ensure results directory exists
   ensureAccessibleDir(RESULTS_DIR);
-
-  // Load configuration
-  const config = loadConfig();
-  const effectiveConfig = mergeConfig(config);
 
   // Check if subagents are disabled
   if (effectiveConfig.enabled === false) {

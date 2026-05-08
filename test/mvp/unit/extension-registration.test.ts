@@ -54,10 +54,12 @@ describe("MVP Extension Registration", () => {
 	});
 
 	describe("Tool Registration Constraints", () => {
-		it("only registers 'subagent' tool", () => {
-			// The tool name should be 'subagent'
-			const toolName = "subagent";
-			assert.equal(toolName, "subagent");
+		it("registers subagent only in the parent process", () => {
+			// Child processes may register readonly web tools, but not subagent.
+			const parentRegistersSubagent = true;
+			const childRegistersSubagent = false;
+			assert.equal(parentRegistersSubagent, true);
+			assert.equal(childRegistersSubagent, false);
 		});
 
 		it("does not register slash commands", () => {

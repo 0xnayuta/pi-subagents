@@ -4,17 +4,8 @@
  */
 
 import assert from "node:assert/strict";
-import * as fs from "node:fs";
-import * as os from "node:os";
-import * as path from "path";
 import { describe, it } from "node:test";
-
-const DEFAULT_CONFIG = {
-	enabled: true,
-	maxSubagentDepth: 1,
-	timeoutMs: 120_000,
-	allowWriteSubagents: false,
-};
+import { DEFAULT_CONFIG, mergeConfig } from "../../../src/config/load-config.ts";
 
 describe("MVP Config Loading", () => {
 	describe("Default Configuration", () => {
@@ -34,6 +25,41 @@ describe("MVP Config Loading", () => {
 		it("has allowWriteSubagents = false for MVP", () => {
 			// MVP is readonly by default
 			assert.equal(DEFAULT_CONFIG.allowWriteSubagents, false);
+		});
+
+		it("has web tools enabled with readonly defaults", () => {
+			assert.deepEqual(DEFAULT_CONFIG.webTools, {
+				enabled: true,
+				provider: "brave",
+				timeoutMs: 10000,
+				maxResponseBytes: 1048576,
+				maxContentChars: 30000,
+				maxResults: 5,
+			});
+		});
+	});
+
+	describe("Web Tools Configuration", () => {
+		it("merges partial webTools config with defaults", () => {
+			const config = mergeConfig({ webTools: { enabled: false, maxResults: 3 } });
+			assert.equal(config.webTools.enabled, false);
+			assert.equal(config.webTools.provider, "brave");
+			assert.equal(config.webTools.maxResults, 3);
+			assert.equal(config.webTools.timeoutMs, 10000);
+		});
+
+		it("rejects invalid webTools values", () => {
+			const config = mergeConfig({
+				webTools: {
+					enabled: "no" as any,
+					provider: "duckduckgo" as any,
+					timeoutMs: 0,
+					maxResponseBytes: -1,
+					maxContentChars: 1.5,
+					maxResults: 0,
+				},
+			});
+			assert.deepEqual(config.webTools, DEFAULT_CONFIG.webTools);
 		});
 	});
 

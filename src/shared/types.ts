@@ -132,12 +132,26 @@ export interface SubagentState {
 // Config
 // ============================================================================
 
+export interface WebToolsConfig {
+  enabled?: boolean;
+  provider?: "brave";
+  timeoutMs?: number;
+  maxResponseBytes?: number;
+  maxContentChars?: number;
+  maxResults?: number;
+}
+
 export interface ExtensionConfig {
   enabled?: boolean;
   maxSubagentDepth?: number;
   timeoutMs?: number;
   allowWriteSubagents?: boolean;
+  webTools?: WebToolsConfig;
 }
+
+export type ResolvedExtensionConfig = Required<Omit<ExtensionConfig, "webTools">> & {
+  webTools: Required<WebToolsConfig>;
+};
 
 // ============================================================================
 // Constants
