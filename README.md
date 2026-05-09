@@ -1,75 +1,59 @@
 # pi-subagents
 
+English | [中文](./README.zh.md)
+
 A lightweight pi extension for delegating tasks to focused child agents.
 
-## 安装
+## Installation
 
 ```bash
 pi install npm:pi-subagents
 ```
 
-## 快速开始
+## Quick Start
 
-安装后，直接用自然语言请求子代理：
-
-```
-用 explorer 帮我找一下认证相关的代码在哪里
-```
+After installation, use natural language to request a subagent:
 
 ```
-用 reviewer 审查一下这个 diff
+Use explorer to find authentication-related code
 ```
 
 ```
-用 researcher 调研一下 REST vs GraphQL 的优缺点
+Use reviewer to audit this diff
 ```
 
-## 使用方式
+```
+Use researcher to compare the pros and cons of REST vs GraphQL
+```
 
-主代理通过 `subagent` 工具调用子代理：
+## Usage
+
+The main agent invokes subagents via the `subagent` tool:
 
 ```ts
 subagent({ agent: "explorer", task: "Find authentication related code" })
 ```
 
-参数：
+Parameters:
 
-- `agent`: 子代理名称
-- `task`: 任务描述
+- `agent`: Subagent name
+- `task`: Task description
 
-## 内置 Web Tools
+## Built-in Subagents
 
-本扩展内置极简 readonly web tools，供主代理和 `researcher` 子代理使用：
+| Agent | Purpose | Tools |
+|-------|---------|-------|
+| `explorer` | Code navigation, file search, architecture analysis | read, grep, find, ls |
+| `researcher` | Documentation/API research, web search | web_search, fetch_content, get_search_content |
+| `reviewer` | Code review, diff inspection | read, grep, find, ls |
+| `implementer` | Implementation planning, patch planning | read, grep, find, ls |
+| `tester` | Test strategy, test case design | read, grep, find, ls |
 
-```ts
-web_search({ query: "TypeScript 5.7 release notes" })
-fetch_content({ url: "https://example.com/docs" })
-get_search_content({ responseId: "...", urlIndex: 0 })
-```
+All built-in agents default to **readonly** (`readonly: true`) and never perform write operations.
 
-边界：
+## Custom Subagents
 
-- `web_search` 第一版使用 Brave Search API，需要 `BRAVE_SEARCH_API_KEY`
-- `fetch_content` 仅支持 `http:` / `https:` 的 `text/html` 和 `text/plain`
-- 内置 web tools 不等同于完整 `pi-web-access`
-- 不支持 YouTube、PDF 专门处理、GitHub clone、登录态/browser cookie、curator UI
-- 结果只保存在内存中，可通过 `responseId` 和 `get_search_content` 取回
-
-## 内置子代理
-
-| Agent | 用途 | 工具 |
-|-------|------|------|
-| `explorer` | 代码导航、文件搜索、架构分析 | read, grep, find, ls |
-| `researcher` | 文档/API 调研、网络搜索 | web_search, fetch_content, get_search_content |
-| `reviewer` | 代码审查、diff 检查 | read, grep, find, ls |
-| `implementer` | 实现规划、patch 计划 | read, grep, find, ls |
-| `tester` | 测试策略、测试用例设计 | read, grep, find, ls |
-
-所有内置代理默认 **只读** (`readonly: true`)，不会执行写操作。
-
-## 自定义子代理
-
-在 `~/.pi/agent/agents/` 或项目 `.pi/agents/` 目录下创建 markdown 文件：
+Create a markdown file in `~/.pi/agent/agents/` or project `.pi/agents/`:
 
 ```markdown
 ---
@@ -82,27 +66,64 @@ tools: read, grep, find, ls
 You are a custom review subagent for this project.
 ```
 
-## 限制
+## Built-in Web Tools
 
-MVP 版本 **不支持** 以下功能：
+This extension ships with lightweight readonly web tools for the main agent and the `researcher` subagent:
 
-- ❌ background/async jobs
-- ❌ chain workflow
-- ❌ parallel execution
-- ❌ intercom/contact_supervisor
-- ❌ worktree 管理
-- ❌ TUI widget
-- ❌ slash commands
-- ❌ skills 注入
-- ❌ bash 工具在只读代理中
+```ts
+web_search({ query: "TypeScript 5.7 release notes" })
+fetch_content({ url: "https://example.com/docs" })
+get_search_content({ responseId: "...", urlIndex: 0 })
+```
 
-## 递归保护
+### Provider Strategy
 
-子代理不能再调用子代理（`maxSubagentDepth = 1`）。子进程不会注册 `subagent` 工具。
+**Zero-config out-of-the-box**: Defaults to DDGS, no API key required.
 
-## 配置
+**Auto mode tiered selection** (`provider: "auto"`):
 
-在 `~/.pi/agent/extensions/subagent/config.json` 中配置：
+```
+Commercial keyed (quality first)  →  tavily → serper → brave
+OpenSERP / SearXNG              →  openserp → searxng
+DDGS fallback (availability first) →  ddgs
+```
+
+In auto mode, providers are tried in this order; on failure, it automatically falls back until one succeeds.
+
+**Explicit provider** (`provider: "ddgs"`): Uses only the specified provider, no fallback.
+
+### Provider Comparison
+
+| Provider | Type | Key Required | Notes |
+|----------|------|-------------|-------|
+| `ddgs` | Zero-config | ❌ | HTML parsing; results tagged `source: "fallback"`, max 5 results |
+| `openserp` | Open/API | ✅ OPENSERP_API_KEY | Requires `enabled: true` |
+| `searxng` | Self-hosted | ❌ | Requires explicit `baseUrl` endpoint |
+| `tavily` | Commercial | ✅ TAVILY_API_KEY | Auto mode includes if key is present |
+| `serper` | Commercial | ✅ SERPER_API_KEY | Auto mode includes if key is present |
+| `brave` | Commercial | ✅ BRAVE_SEARCH_API_KEY | Auto mode includes if key is present |
+
+### Error Codes
+
+| Code | Description |
+|------|-------------|
+| `WEB_SEARCH_AUTH_REQUIRED` | Missing or invalid API key (includes HTTP 401/403) |
+| `WEB_SEARCH_RATE_LIMIT` | Provider rate limit reached (HTTP 429) |
+| `WEB_SEARCH_PROVIDER_ERROR` | Provider temporary error (HTTP 5xx) |
+| `WEB_SEARCH_NETWORK_ERROR` | Network error (DNS, connection failure, etc.) |
+| `SUBAGENT_TIMEOUT` | Single search request timeout |
+| `INVALID_INPUT` | Missing query or unsupported provider value |
+
+### Scope & Limitations
+
+- `fetch_content` only supports `http:` / `https:` for `text/html` and `text/plain`
+- Built-in web tools are not equivalent to the full `pi-web-access`
+- YouTube, PDF-specific handling, GitHub clone, browser cookies/login state, and curator UI are not supported
+- Results are stored in-memory only; retrieve them via `responseId` and `get_search_content`
+
+## Configuration
+
+Configure in `~/.pi/agent/extensions/subagent/config.json`:
 
 ```json
 {
@@ -112,24 +133,69 @@ MVP 版本 **不支持** 以下功能：
   "allowWriteSubagents": false,
   "webTools": {
     "enabled": true,
-    "provider": "brave",
+    "provider": "ddgs",
+    "providerPriority": ["tavily", "serper", "brave", "openserp", "searxng", "ddgs"],
     "timeoutMs": 10000,
     "maxResponseBytes": 1048576,
     "maxContentChars": 30000,
-    "maxResults": 5
+    "maxResults": 5,
+    "searxng": {
+      "enabled": false,
+      "baseUrl": ""
+    },
+    "openserp": {
+      "enabled": false,
+      "baseUrl": "https://api.openserp.com/search",
+      "apiKeyEnv": "OPENSERP_API_KEY"
+    },
+    "tavily": {
+      "enabled": false,
+      "baseUrl": "https://api.tavily.com/search",
+      "apiKeyEnv": "TAVILY_API_KEY"
+    },
+    "serper": {
+      "enabled": false,
+      "baseUrl": "https://google.serper.dev/search",
+      "apiKeyEnv": "SERPER_API_KEY"
+    }
   }
 }
 ```
 
-## 错误码
+### Config Reference
 
-| Code | 说明 |
-|------|------|
-| `INVALID_INPUT` | 缺少必需参数 |
-| `SUBAGENTS_DISABLED` | 子代理功能已禁用 |
-| `UNKNOWN_AGENT` | 未知代理名称 |
-| `SUBAGENT_DISABLED` | 该代理已禁用 |
-| `SUBAGENT_DEPTH_EXCEEDED` | 递归深度超限 |
-| `SUBAGENT_TIMEOUT` | 执行超时 |
-| `SUBAGENT_FAILED` | 子代理执行失败 |
-| `SUBAGENT_OUTPUT_TRUNCATED` | 输出被截断 |
+- `provider`: `"ddgs"` | `"auto"` | `"brave"` | `"tavily"` | `"serper"` | `"openserp"` | `"searxng"`
+- `providerPriority`: In auto mode, controls within-tier candidate ordering (providers not in the list are ignored)
+- `searxng.baseUrl`: Must be explicitly set when using SearXNG (e.g., `http://127.0.0.1:8080`)
+- Commercial provider `enabled` controls whether **explicit invocation** is allowed; auto mode auto-includes if a key is present
+
+## Limitations
+
+The MVP version **does not support** the following:
+
+- ❌ background/async jobs
+- ❌ chain workflow
+- ❌ parallel execution
+- ❌ intercom/contact_supervisor
+- ❌ worktree management
+- ❌ TUI widget
+- ❌ slash commands
+- ❌ skills injection
+- ❌ bash tool in readonly agents
+
+## Recursion Protection
+
+Subagents cannot invoke subagents (`maxSubagentDepth = 1`). Child processes do not register the `subagent` tool.
+
+## Error Codes
+
+| Code | Description |
+|------|-------------|
+| `INVALID_INPUT` | Missing required parameter or unsupported config value |
+| `SUBAGENTS_DISABLED` | Subagent feature is disabled |
+| `UNKNOWN_AGENT` | Unknown agent name |
+| `SUBAGENT_DISABLED` | This agent is disabled |
+| `SUBAGENT_DEPTH_EXCEEDED` | Recursion depth exceeded |
+| `SUBAGENT_TIMEOUT` | Execution timeout |
+| `SUBAGENT_FAILED` | Subagent execution failed |
+| `SUBAGENT_OUTPUT_TRUNCATED` | Output was truncated |
