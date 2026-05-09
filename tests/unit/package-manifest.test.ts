@@ -29,7 +29,7 @@ test("direct @mariozechner runtime imports are declared for CI installs", () => 
 	]);
 	const imported = new Set<string>();
 
-	for (const file of [...collectTsFiles(path.join(projectRoot, "src")), ...collectTsFiles(path.join(projectRoot, "test"))]) {
+	for (const file of [...collectTsFiles(path.join(projectRoot, "src")), ...collectTsFiles(path.join(projectRoot, "tests"))]) {
 		const source = fs.readFileSync(file, "utf-8");
 		for (const match of source.matchAll(sourceImportPattern)) {
 			imported.add(match[1] ?? match[2]!);

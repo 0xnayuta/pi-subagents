@@ -31,8 +31,8 @@
   ],
   "scripts": {
     "test": "pnpm test:unit",
-    "test:unit": "node --experimental-strip-types --test test/unit/*.test.ts",
-    "test:mvp": "node --experimental-strip-types --test test/mvp/unit/*.test.ts",
+    "test:unit": "node --experimental-strip-types --test tests/unit/*.test.ts",
+    "test:mvp": "node --experimental-strip-types --test tests/mvp/unit/*.test.ts",
     "typecheck": "tsc --noEmit",
     "lint": "biome check src",
     "lint:fix": "biome check --write src",
