@@ -99,8 +99,8 @@ pnpm docs:check
 
 ## 文档
 
-- `docs/guides/01-goals-and-scope.md` - 目标与范围
-- `docs/guides/03-extension-api.md` - 扩展 API 参考
+- `docs/guides/goals-and-scope.md` - 目标与范围
+- `docs/guides/extension-api.md` - 扩展 API 参考
 - `docs/adr/` - 架构决策记录
 
 如需恢复任何删除的功能，必须新增 ADR。

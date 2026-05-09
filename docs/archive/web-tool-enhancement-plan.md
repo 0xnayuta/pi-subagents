@@ -1,5 +1,5 @@
 ---
-status: current
+status: historical
 audience: all
 last_verified: 2026-05-09
 completed_phases: [1, 2, 3, 4, 5, 6, 7]
@@ -7,6 +7,8 @@ completed_phases: [1, 2, 3, 4, 5, 6, 7]
 
 # Web 工具增强计划
 
+> 本文档已归档，仅保留为历史增强计划。当前行为请以 [Web Tools 运行时治理与可观测性](../guides/web-tools-runtime-governance-and-observability.md)、[Web Search 验收清单](../guides/web-search-acceptance-checklist.md)、[配置参考](../reference/configuration.md) 和代码为准。
+>
 > ✅ Phase 1-7 已完成（2026-05-09）
 
 ## 概述
@@ -851,7 +853,7 @@ src/web/
 - [x] 添加 `/subagents activity` 命令
 - [x] 实现交互式 TUI 显示层
 - [x] 添加 session 生命周期清理
-- [x] 更新 `docs/guides/09-web-tools-runtime-governance-and-observability.md`
+- [x] 更新 `docs/guides/web-tools-runtime-governance-and-observability.md`
 
 ### Phase 7: Web 工具输出折叠/展开渲染增强 (0.5-1 天)
 

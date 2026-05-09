@@ -57,7 +57,7 @@ pi 的渲染系统无法识别该对象结构，最终将其显示为 `[object O
 相关文件：
 
 - `src/extension/index.ts`
-- `docs/guides/03-extension-api.md`
+- `docs/guides/extension-api.md`
 - `docs/reference/result-schema.md`
 
 ---

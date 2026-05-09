@@ -203,7 +203,7 @@ if (!isSubagentChild) {
 
 - [ ] 修复当前项目已知的类型检查、测试或文档同步问题。
 - [ ] 确认 `pnpm typecheck`、`pnpm test`、`pnpm docs:check` 的目标状态。
-- [ ] 更新 `docs/guides/01-goals-and-scope.md`，说明项目是否将从轻量 subagent 扩展升级为综合扩展包。
+- [ ] 更新 `docs/guides/goals-and-scope.md`，说明项目是否将从轻量 subagent 扩展升级为综合扩展包。
 - [ ] 新增 ADR，正式记录项目目标扩大和 LSP 合并决策。
 - [ ] 明确是否保留 `pi-subagents` 包名，或改名为更通用的 suite 名称。
 - [ ] 设计统一配置 namespace：`subagents` / `web` / `lsp`。

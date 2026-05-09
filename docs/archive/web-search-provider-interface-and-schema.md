@@ -1,10 +1,12 @@
 ---
-status: proposed
+status: historical
 audience: maintainer
 last_verified: 2026-05-08
 ---
 
 # Web Search 最小 Provider 接口与配置 Schema 设计
+
+> 本文档已归档，仅保留为历史设计记录。当前 provider 行为请以 [Web Tools 运行时治理与可观测性](../guides/web-tools-runtime-governance-and-observability.md)、[配置参考](../reference/configuration.md) 和代码为准。
 
 本文定义 `pi-subagents` 内置 web tools 的最小 provider 抽象层与配置 schema，目标是：
 

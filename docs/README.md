@@ -12,30 +12,27 @@ last_verified: 2026-05-08
 
 适合安装、配置和使用扩展时阅读。
 
-1. [目标与范围](./guides/01-goals-and-scope.md)
+1. [目标与范围](./guides/goals-and-scope.md)
 2. [Subagent 工具 API](./reference/subagent-tool.md)
 3. [Agent 定义格式](./reference/agent-definition.md)
 4. [配置参考](./reference/configuration.md)
 5. [结果 Schema](./reference/result-schema.md)
 6. [Web Tools 错误码](./reference/web-tools-error-codes.md)
-7. [Web Tools 增强计划](./guides/12-web-tool-enhancement-plan.md)
-8. [问题记录](./issues/issue-log.md)
+7. [问题记录](./issues/issue-log.md)
 
 ## 维护者文档
 
 适合修改代码、验证行为和准备发布时阅读。
 
-1. [架构总览](./guides/02-architecture.md)
-2. [扩展 API 参考](./guides/03-extension-api.md)
-3. [安全模型](./guides/05-security-model.md)
-4. [测试策略](./guides/06-testing.md)
-5. [Web Tools 实施计划](./guides/07-web-tools-implementation-plan.md)
-6. [Web Tools 运行时治理与可观测性](./guides/09-web-tools-runtime-governance-and-observability.md)
-7. [Web Search 验收清单](./guides/10-web-search-acceptance-checklist.md)
-8. [Web Search Provider 接口设计](./guides/11-web-search-provider-interface-and-schema.md)
-9. [问题记录](./issues/issue-log.md)
-10. [发布前检查清单](./guides/release-checklist.md)
-11. [推迟合并 pi-lsp 的综合扩展计划](./guides/13-deferred-pi-lsp-merge-plan.md)
+1. [架构总览](./guides/architecture.md)
+2. [扩展 API 参考](./guides/extension-api.md)
+3. [安全模型](./guides/security-model.md)
+4. [测试策略](./guides/testing.md)
+5. [Web Tools 运行时治理与可观测性](./guides/web-tools-runtime-governance-and-observability.md)
+6. [Web Search 验收清单](./guides/web-search-acceptance-checklist.md)
+7. [问题记录](./issues/issue-log.md)
+8. [发布前检查清单](./guides/release-checklist.md)
+9. [推迟合并 pi-lsp 的综合扩展计划](./guides/deferred-pi-lsp-merge-plan.md)
 
 ## 决策记录
 
@@ -50,6 +47,9 @@ last_verified: 2026-05-08
 
 - [Phase 0 审计](./archive/phase-0-audit.md)
 - [Web Search Provider 迁移 Phase 0 基线报告](./archive/web-search-provider-phase0-baseline.md)
+- [Web Tools 实施计划](./archive/web-tools-implementation-plan.md)
+- [Web Search Provider 接口设计](./archive/web-search-provider-interface-and-schema.md)
+- [Web 工具增强计划](./archive/web-tool-enhancement-plan.md)
 - [简化改造实施记录](./archive/simplification-implementation-history.md)
 - [删除清单审计](./archive/deletion-audit.md)
 - [pi-subagents 简化改造参考文档](./archive/pi-subagents-simplification-guide.md)

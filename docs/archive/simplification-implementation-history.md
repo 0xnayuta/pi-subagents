@@ -8,7 +8,7 @@ last_verified: 2026-05-08
 
 > Status: historical
 >
-> 本文档记录简化改造过程与验收历史，不再作为当前代码结构的 source of truth。当前架构请以 `docs/guides/02-architecture.md`、`src/runtime/`、`src/extension/` 和 `src/agents/` 为准。
+> 本文档记录简化改造过程与验收历史，不再作为当前代码结构的 source of truth。当前架构请以 `docs/guides/architecture.md`、`src/runtime/`、`src/extension/` 和 `src/agents/` 为准。
 
 本文档基于简化改造期间的代码阅读结果修订，作为 `pi-subagents` 简化改造的执行记录。
 

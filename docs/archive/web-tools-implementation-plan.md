@@ -1,10 +1,12 @@
 ---
-status: proposed
+status: historical
 audience: maintainer
 last_verified: 2026-05-08
 ---
 
 # 内置 Web Tools 实施路线
+
+> 本文档已归档，仅保留为历史实施计划。当前行为请以 [Web Tools 运行时治理与可观测性](../guides/web-tools-runtime-governance-and-observability.md)、[配置参考](../reference/configuration.md) 和代码为准。
 
 本文记录 `pi-subagents` 内置极简 readonly web tools 的推荐实施路线。对应决策见 [ADR 0004](../adr/0004-bundled-readonly-web-tools.md)。
 
@@ -173,7 +175,7 @@ pi.registerTool(subagentTool);
 - `README.md`
 - `docs/reference/configuration.md`
 - `docs/reference/agent-definition.md`
-- `docs/guides/05-security-model.md`
+- `docs/guides/security-model.md`
 
 说明 web tools 是内置极简子集，不等同于完整 `pi-web-access`。
 

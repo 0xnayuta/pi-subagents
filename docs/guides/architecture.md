@@ -13,7 +13,7 @@ src/
 ├─ extension/      # pi 扩展入口、工具注册、可选命令
 ├─ agents/         # agent 加载、frontmatter 解析、内置 agent
 ├─ runtime/        # 构造 prompt、启动 pi、收集输出、sanitize
-├─ web/            # Proposed: 内置极简 readonly web tools
+├─ web/            # 内置极简 readonly web tools
 ├─ config/         # 配置加载与默认值
 └─ shared/         # 类型、路径、通用工具
 ```
@@ -41,9 +41,9 @@ sanitize + normalize result
 - 子代理 session 不注册 `subagent` 工具。
 - 工具内部不实现 chain、parallel 或 workflow engine。
 
-## Proposed: 内置 readonly web tools
+## 内置 readonly web tools
 
-为让 `researcher` 开箱可用，计划内置 `web_search`、`fetch_content`、`get_search_content` 的极简子集。该模块只提供 readonly 网络研究能力，不改变 subagent 编排边界。
+为让 `researcher` 开箱可用，项目内置 `web_search`、`fetch_content`、`get_search_content`。该模块只提供 readonly 网络研究能力，不改变 subagent 编排边界。
 
 推荐注册顺序：
 
@@ -57,4 +57,4 @@ registerSubagentTool(pi);
 
 这样子代理进程可以使用 web tools，但仍不能递归调用 `subagent`。
 
-详见 [ADR 0004](../adr/0004-bundled-readonly-web-tools.md) 和 [实施路线](./07-web-tools-implementation-plan.md)。
+详见 [ADR 0004](../adr/0004-bundled-readonly-web-tools.md) 和 [实施路线](../archive/web-tools-implementation-plan.md)。

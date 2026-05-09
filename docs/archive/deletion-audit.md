@@ -8,7 +8,7 @@ last_verified: 2026-05-08
 
 > Status: historical
 >
-> 本文档记录简化改造期间的删除审计，不再作为当前代码结构的 source of truth。当前架构请以 `docs/guides/02-architecture.md` 和 `src/` 为准。
+> 本文档记录简化改造期间的删除审计，不再作为当前代码结构的 source of truth。当前架构请以 `docs/guides/architecture.md` 和 `src/` 为准。
 
 本文档基于对项目全部源码和导入关系的审计，列出了需要删除的目录/文件，并逐一确认其属于旧高级能力。
 
