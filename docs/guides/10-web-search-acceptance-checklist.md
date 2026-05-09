@@ -137,10 +137,10 @@ last_verified: 2026-05-09
 
 ## F. 进程注册语义（必过）
 
-- [ ] **parent 进程注册集合正确**
+- [x] **parent 进程注册集合正确**
   - 期望：`web_search` / `fetch_content` / `get_search_content` + `subagent`
 
-- [ ] **child 进程注册集合正确**
+- [x] **child 进程注册集合正确**
   - 期望：仅 `web_search` / `fetch_content` / `get_search_content`，不含 `subagent`
 
 ---
