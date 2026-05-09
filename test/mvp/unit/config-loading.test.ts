@@ -31,6 +31,7 @@ describe("MVP Config Loading", () => {
 			assert.deepEqual(DEFAULT_CONFIG.webTools, {
 				enabled: true,
 				provider: "brave",
+				providerPriority: ["brave", "tavily", "serper", "openserp", "searxng", "ddgs"],
 				timeoutMs: 10000,
 				maxResponseBytes: 1048576,
 				maxContentChars: 30000,
@@ -40,6 +41,26 @@ describe("MVP Config Loading", () => {
 				maxStoredResults: 100,
 				maxStoredContentChars: 200000,
 				debug: false,
+				openserp: {
+					enabled: false,
+					baseUrl: "https://api.openserp.com/search",
+					apiKeyEnv: "OPENSERP_API_KEY",
+				},
+				searxng: {
+					enabled: false,
+					baseUrl: "http://127.0.0.1:8080",
+					defaultEngine: "google",
+				},
+				tavily: {
+					enabled: false,
+					baseUrl: "https://api.tavily.com/search",
+					apiKeyEnv: "TAVILY_API_KEY",
+				},
+				serper: {
+					enabled: false,
+					baseUrl: "https://google.serper.dev/search",
+					apiKeyEnv: "SERPER_API_KEY",
+				},
 			});
 		});
 	});
@@ -49,26 +70,65 @@ describe("MVP Config Loading", () => {
 			const config = mergeConfig({
 				webTools: {
 					enabled: false,
+					provider: "auto",
+					providerPriority: ["searxng", "ddgs"],
 					maxResults: 3,
 					enableJinaFallback: true,
 					maxStoredResults: 20,
 					debug: true,
+					openserp: {
+						enabled: true,
+						baseUrl: "https://api.openserp.com/custom",
+						apiKeyEnv: "CUSTOM_OPENSERP_KEY",
+					},
+					searxng: {
+						enabled: true,
+						baseUrl: "http://127.0.0.1:9090",
+						defaultEngine: "duckduckgo",
+					},
+					tavily: {
+						enabled: true,
+						baseUrl: "https://api.tavily.com/custom",
+						apiKeyEnv: "CUSTOM_TAVILY_KEY",
+					},
+					serper: {
+						enabled: true,
+						baseUrl: "https://google.serper.dev/custom",
+						apiKeyEnv: "CUSTOM_SERPER_KEY",
+					},
 				},
 			});
 			assert.equal(config.webTools.enabled, false);
-			assert.equal(config.webTools.provider, "brave");
+			assert.equal(config.webTools.provider, "auto");
+			assert.deepEqual(config.webTools.providerPriority, ["searxng", "ddgs"]);
 			assert.equal(config.webTools.maxResults, 3);
 			assert.equal(config.webTools.timeoutMs, 10000);
 			assert.equal(config.webTools.enableJinaFallback, true);
 			assert.equal(config.webTools.maxStoredResults, 20);
 			assert.equal(config.webTools.debug, true);
+			assert.equal(config.webTools.openserp.enabled, true);
+			assert.equal(config.webTools.openserp.baseUrl, "https://api.openserp.com/custom");
+			assert.equal(config.webTools.openserp.apiKeyEnv, "CUSTOM_OPENSERP_KEY");
+			assert.equal(config.webTools.searxng.enabled, true);
+			assert.equal(config.webTools.searxng.baseUrl, "http://127.0.0.1:9090");
+			assert.equal(config.webTools.searxng.defaultEngine, "duckduckgo");
+			assert.equal(config.webTools.tavily.enabled, true);
+			assert.equal(config.webTools.tavily.baseUrl, "https://api.tavily.com/custom");
+			assert.equal(config.webTools.tavily.apiKeyEnv, "CUSTOM_TAVILY_KEY");
+			assert.equal(config.webTools.serper.enabled, true);
+			assert.equal(config.webTools.serper.baseUrl, "https://google.serper.dev/custom");
+			assert.equal(config.webTools.serper.apiKeyEnv, "CUSTOM_SERPER_KEY");
 		});
 
-		it("rejects invalid webTools values", () => {
-			const config = mergeConfig({
+		it("accepts ddgs provider and rejects invalid webTools values", () => {
+			const valid = mergeConfig({ webTools: { provider: "ddgs" } });
+			assert.equal(valid.webTools.provider, "ddgs");
+
+			const invalid = mergeConfig({
 				webTools: {
 					enabled: "no" as any,
 					provider: "duckduckgo" as any,
+					providerPriority: ["x", "y"] as any,
 					timeoutMs: 0,
 					maxResponseBytes: -1,
 					maxContentChars: 1.5,
@@ -78,9 +138,13 @@ describe("MVP Config Loading", () => {
 					maxStoredResults: 0,
 					maxStoredContentChars: -1,
 					debug: "true" as any,
+					openserp: { enabled: "on", baseUrl: "", apiKeyEnv: "" } as any,
+					searxng: { enabled: "on", baseUrl: "", defaultEngine: "" } as any,
+					tavily: { enabled: "on", baseUrl: "", apiKeyEnv: "" } as any,
+					serper: { enabled: "on", baseUrl: "", apiKeyEnv: "" } as any,
 				},
 			});
-			assert.deepEqual(config.webTools, DEFAULT_CONFIG.webTools);
+			assert.deepEqual(invalid.webTools, DEFAULT_CONFIG.webTools);
 		});
 	});
 

@@ -132,9 +132,37 @@ export interface SubagentState {
 // Config
 // ============================================================================
 
+export type WebSearchProviderName =
+  | "auto"
+  | "brave"
+  | "ddgs"
+  | "openserp"
+  | "searxng"
+  | "tavily"
+  | "serper";
+
+export interface OpenSerpProviderConfig {
+  enabled?: boolean;
+  baseUrl?: string;
+  apiKeyEnv?: string;
+}
+
+export interface SearxngProviderConfig {
+  enabled?: boolean;
+  baseUrl?: string;
+  defaultEngine?: string;
+}
+
+export interface ApiKeyProviderConfig {
+  enabled?: boolean;
+  baseUrl?: string;
+  apiKeyEnv?: string;
+}
+
 export interface WebToolsConfig {
   enabled?: boolean;
-  provider?: "brave";
+  provider?: WebSearchProviderName;
+  providerPriority?: Exclude<WebSearchProviderName, "auto">[];
   timeoutMs?: number;
   maxResponseBytes?: number;
   maxContentChars?: number;
@@ -144,6 +172,10 @@ export interface WebToolsConfig {
   maxStoredResults?: number;
   maxStoredContentChars?: number;
   debug?: boolean;
+  openserp?: OpenSerpProviderConfig;
+  searxng?: SearxngProviderConfig;
+  tavily?: ApiKeyProviderConfig;
+  serper?: ApiKeyProviderConfig;
 }
 
 export interface ExtensionConfig {
@@ -154,8 +186,17 @@ export interface ExtensionConfig {
   webTools?: WebToolsConfig;
 }
 
+export type ResolvedWebToolsConfig = Required<
+  Omit<WebToolsConfig, "openserp" | "searxng" | "tavily" | "serper">
+> & {
+  openserp: Required<OpenSerpProviderConfig>;
+  searxng: Required<SearxngProviderConfig>;
+  tavily: Required<ApiKeyProviderConfig>;
+  serper: Required<ApiKeyProviderConfig>;
+};
+
 export type ResolvedExtensionConfig = Required<Omit<ExtensionConfig, "webTools">> & {
-  webTools: Required<WebToolsConfig>;
+  webTools: ResolvedWebToolsConfig;
 };
 
 // ============================================================================

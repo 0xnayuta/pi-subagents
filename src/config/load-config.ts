@@ -1,11 +1,18 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { ExtensionConfig, ResolvedExtensionConfig, WebToolsConfig } from "../shared/types.ts";
+import type {
+  ExtensionConfig,
+  ResolvedExtensionConfig,
+  ResolvedWebToolsConfig,
+  WebSearchProviderName,
+  WebToolsConfig,
+} from "../shared/types.ts";
 
-export const DEFAULT_WEB_TOOLS_CONFIG: Required<WebToolsConfig> = {
+export const DEFAULT_WEB_TOOLS_CONFIG: ResolvedWebToolsConfig = {
   enabled: true,
   provider: "brave",
+  providerPriority: ["brave", "tavily", "serper", "openserp", "searxng", "ddgs"],
   timeoutMs: 10000,
   maxResponseBytes: 1048576,
   maxContentChars: 30000,
@@ -15,6 +22,26 @@ export const DEFAULT_WEB_TOOLS_CONFIG: Required<WebToolsConfig> = {
   maxStoredResults: 100,
   maxStoredContentChars: 200000,
   debug: false,
+  openserp: {
+    enabled: false,
+    baseUrl: "https://api.openserp.com/search",
+    apiKeyEnv: "OPENSERP_API_KEY",
+  },
+  searxng: {
+    enabled: false,
+    baseUrl: "http://127.0.0.1:8080",
+    defaultEngine: "google",
+  },
+  tavily: {
+    enabled: false,
+    baseUrl: "https://api.tavily.com/search",
+    apiKeyEnv: "TAVILY_API_KEY",
+  },
+  serper: {
+    enabled: false,
+    baseUrl: "https://google.serper.dev/search",
+    apiKeyEnv: "SERPER_API_KEY",
+  },
 };
 
 export const DEFAULT_CONFIG: ResolvedExtensionConfig = {
@@ -59,10 +86,50 @@ function booleanValue(value: unknown, fallback: boolean): boolean {
   return typeof value === "boolean" ? value : fallback;
 }
 
-function normalizeWebToolsConfig(base: WebToolsConfig | undefined): Required<WebToolsConfig> {
+const PROVIDER_NAMES: Exclude<WebSearchProviderName, "auto">[] = [
+  "brave",
+  "tavily",
+  "serper",
+  "openserp",
+  "searxng",
+  "ddgs",
+];
+
+function normalizeProvider(value: unknown): ResolvedWebToolsConfig["provider"] {
+  return value === "brave" ||
+    value === "ddgs" ||
+    value === "auto" ||
+    value === "openserp" ||
+    value === "searxng" ||
+    value === "tavily" ||
+    value === "serper"
+    ? value
+    : DEFAULT_WEB_TOOLS_CONFIG.provider;
+}
+
+function normalizeProviderPriority(value: unknown): ResolvedWebToolsConfig["providerPriority"] {
+  if (!Array.isArray(value)) {
+    return [...DEFAULT_WEB_TOOLS_CONFIG.providerPriority];
+  }
+
+  const filtered = value.filter(
+    (item): item is Exclude<WebSearchProviderName, "auto"> =>
+      typeof item === "string" &&
+      PROVIDER_NAMES.includes(item as Exclude<WebSearchProviderName, "auto">)
+  );
+
+  if (filtered.length === 0) {
+    return [...DEFAULT_WEB_TOOLS_CONFIG.providerPriority];
+  }
+
+  return [...new Set(filtered)];
+}
+
+function normalizeWebToolsConfig(base: WebToolsConfig | undefined): ResolvedWebToolsConfig {
   return {
     enabled: booleanValue(base?.enabled, DEFAULT_WEB_TOOLS_CONFIG.enabled),
-    provider: base?.provider === "brave" ? base.provider : DEFAULT_WEB_TOOLS_CONFIG.provider,
+    provider: normalizeProvider(base?.provider),
+    providerPriority: normalizeProviderPriority(base?.providerPriority),
     timeoutMs: positiveInteger(base?.timeoutMs, DEFAULT_WEB_TOOLS_CONFIG.timeoutMs),
     maxResponseBytes: positiveInteger(
       base?.maxResponseBytes,
@@ -87,6 +154,51 @@ function normalizeWebToolsConfig(base: WebToolsConfig | undefined): Required<Web
       DEFAULT_WEB_TOOLS_CONFIG.maxStoredContentChars
     ),
     debug: booleanValue(base?.debug, DEFAULT_WEB_TOOLS_CONFIG.debug),
+    openserp: {
+      enabled: booleanValue(base?.openserp?.enabled, DEFAULT_WEB_TOOLS_CONFIG.openserp.enabled),
+      baseUrl:
+        typeof base?.openserp?.baseUrl === "string" && base.openserp.baseUrl.trim().length > 0
+          ? base.openserp.baseUrl.trim()
+          : DEFAULT_WEB_TOOLS_CONFIG.openserp.baseUrl,
+      apiKeyEnv:
+        typeof base?.openserp?.apiKeyEnv === "string" && base.openserp.apiKeyEnv.trim().length > 0
+          ? base.openserp.apiKeyEnv.trim()
+          : DEFAULT_WEB_TOOLS_CONFIG.openserp.apiKeyEnv,
+    },
+    searxng: {
+      enabled: booleanValue(base?.searxng?.enabled, DEFAULT_WEB_TOOLS_CONFIG.searxng.enabled),
+      baseUrl:
+        typeof base?.searxng?.baseUrl === "string" && base.searxng.baseUrl.trim().length > 0
+          ? base.searxng.baseUrl.trim()
+          : DEFAULT_WEB_TOOLS_CONFIG.searxng.baseUrl,
+      defaultEngine:
+        typeof base?.searxng?.defaultEngine === "string" &&
+        base.searxng.defaultEngine.trim().length > 0
+          ? base.searxng.defaultEngine.trim()
+          : DEFAULT_WEB_TOOLS_CONFIG.searxng.defaultEngine,
+    },
+    tavily: {
+      enabled: booleanValue(base?.tavily?.enabled, DEFAULT_WEB_TOOLS_CONFIG.tavily.enabled),
+      baseUrl:
+        typeof base?.tavily?.baseUrl === "string" && base.tavily.baseUrl.trim().length > 0
+          ? base.tavily.baseUrl.trim()
+          : DEFAULT_WEB_TOOLS_CONFIG.tavily.baseUrl,
+      apiKeyEnv:
+        typeof base?.tavily?.apiKeyEnv === "string" && base.tavily.apiKeyEnv.trim().length > 0
+          ? base.tavily.apiKeyEnv.trim()
+          : DEFAULT_WEB_TOOLS_CONFIG.tavily.apiKeyEnv,
+    },
+    serper: {
+      enabled: booleanValue(base?.serper?.enabled, DEFAULT_WEB_TOOLS_CONFIG.serper.enabled),
+      baseUrl:
+        typeof base?.serper?.baseUrl === "string" && base.serper.baseUrl.trim().length > 0
+          ? base.serper.baseUrl.trim()
+          : DEFAULT_WEB_TOOLS_CONFIG.serper.baseUrl,
+      apiKeyEnv:
+        typeof base?.serper?.apiKeyEnv === "string" && base.serper.apiKeyEnv.trim().length > 0
+          ? base.serper.apiKeyEnv.trim()
+          : DEFAULT_WEB_TOOLS_CONFIG.serper.apiKeyEnv,
+    },
   };
 }
 

@@ -1,13 +1,9 @@
 import type { ResolvedExtensionConfig } from "../shared/types.ts";
-import { isAbortLikeError, withTimeoutSignal } from "./abort.ts";
+import { isAbortLikeError } from "./abort.ts";
 import { truncateContent } from "./extract.ts";
 import { fetchUrlContent } from "./fetch.ts";
-import {
-  recordSearchCall,
-  recordSearchFailure,
-  recordSearchSuccess,
-  webDebugLog,
-} from "./observability.ts";
+import { recordSearchFailure, webDebugLog } from "./observability.ts";
+import { selectSearchProvider } from "./providers/select-provider.ts";
 import { storeResult } from "./storage.ts";
 import type { QueryResultData, SearchResultItem, WebSearchInput, WebToolError } from "./types.ts";
 
@@ -20,40 +16,6 @@ export type WebSearchResult = WebSearchSuccess | WebToolError;
 
 const MAX_QUERIES = 5;
 const INCLUDE_CONTENT_CONCURRENCY = 3;
-const BRAVE_SEARCH_ENDPOINT = "https://api.search.brave.com/res/v1/web/search";
-
-interface BraveSearchResult {
-  title?: string;
-  url?: string;
-  description?: string;
-  profile?: {
-    name?: string;
-  };
-}
-
-interface BraveSearchResponse {
-  web?: {
-    results?: BraveSearchResult[];
-  };
-}
-
-interface SearchHttpError extends Error {
-  status: number;
-  responseText?: string;
-}
-
-function createSearchHttpError(
-  status: number,
-  statusText: string,
-  responseText?: string
-): SearchHttpError {
-  const err = new Error(
-    `Brave Search API returned HTTP ${status} ${statusText}`
-  ) as SearchHttpError;
-  err.status = status;
-  err.responseText = responseText;
-  return err;
-}
 
 function error(code: string, message: string): WebToolError {
   return { error: { code, message } };
@@ -73,58 +35,6 @@ function normalizeNumResults(params: WebSearchInput, config: ResolvedExtensionCo
     return config.webTools.maxResults;
   }
   return Math.min(Math.max(Math.floor(requested), 1), config.webTools.maxResults);
-}
-
-function getBraveApiKey(): string | undefined {
-  const value = process.env.BRAVE_SEARCH_API_KEY;
-  if (typeof value !== "string") return undefined;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
-}
-
-async function braveSearch(
-  query: string,
-  count: number,
-  config: ResolvedExtensionConfig,
-  signal?: AbortSignal
-): Promise<SearchResultItem[]> {
-  const apiKey = getBraveApiKey();
-  if (!apiKey) {
-    throw new Error("BRAVE_SEARCH_API_KEY is required for web_search provider 'brave'");
-  }
-
-  const url = new URL(BRAVE_SEARCH_ENDPOINT);
-  url.searchParams.set("q", query);
-  url.searchParams.set("count", String(count));
-
-  const searchStart = recordSearchCall("brave");
-  const response = await fetch(url, {
-    method: "GET",
-    signal: withTimeoutSignal(config.webTools.timeoutMs, signal),
-    headers: {
-      accept: "application/json",
-      "accept-encoding": "gzip",
-      "x-subscription-token": apiKey,
-    },
-  });
-
-  if (!response.ok) {
-    const responseText = await response.text().catch(() => "");
-    recordSearchFailure("brave", `HTTP_${response.status}`, searchStart);
-    throw createSearchHttpError(response.status, response.statusText, responseText.slice(0, 300));
-  }
-
-  const data = (await response.json()) as BraveSearchResponse;
-  recordSearchSuccess("brave", searchStart);
-  return (data.web?.results ?? [])
-    .filter((item) => typeof item.url === "string" && typeof item.title === "string")
-    .slice(0, count)
-    .map((item) => ({
-      title: item.title ?? item.url ?? "Untitled",
-      url: item.url ?? "",
-      snippet: item.description,
-      source: item.profile?.name ?? "brave",
-    }));
 }
 
 function limitSearchOutput(queries: QueryResultData[], maxContentChars: number): QueryResultData[] {
@@ -196,9 +106,20 @@ async function attachContent(
   return output;
 }
 
-function classifySearchError(err: unknown): WebToolError {
+function providerDisplayName(providerName: string): string {
+  if (providerName === "brave") return "Brave Search";
+  if (providerName === "ddgs") return "DuckDuckGo Lite";
+  if (providerName === "openserp") return "OpenSERP";
+  if (providerName === "searxng") return "SearXNG";
+  if (providerName === "tavily") return "Tavily";
+  if (providerName === "serper") return "Serper";
+  return providerName;
+}
+
+function classifySearchError(err: unknown, providerName: string): WebToolError {
+  const displayName = providerDisplayName(providerName);
   if (isAbortLikeError(err)) {
-    recordSearchFailure("brave", "SUBAGENT_TIMEOUT", Date.now());
+    recordSearchFailure(providerName, "SUBAGENT_TIMEOUT", Date.now());
     return error(
       "SUBAGENT_TIMEOUT",
       "web_search timed out or was aborted. Try fewer queries, smaller numResults, or increase webTools.timeoutMs."
@@ -208,10 +129,18 @@ function classifySearchError(err: unknown): WebToolError {
   const message = err instanceof Error ? err.message : String(err);
 
   if (message.includes("BRAVE_SEARCH_API_KEY")) {
-    recordSearchFailure("brave", "WEB_SEARCH_AUTH_REQUIRED", Date.now());
+    recordSearchFailure(providerName, "WEB_SEARCH_AUTH_REQUIRED", Date.now());
     return error(
       "WEB_SEARCH_AUTH_REQUIRED",
       "Brave provider requires BRAVE_SEARCH_API_KEY. Set it in environment and retry."
+    );
+  }
+
+  if (message.includes("is required for web_search provider")) {
+    recordSearchFailure(providerName, "WEB_SEARCH_AUTH_REQUIRED", Date.now());
+    return error(
+      "WEB_SEARCH_AUTH_REQUIRED",
+      `${displayName} requires credentials from configured environment variables. Check provider config and retry.`
     );
   }
 
@@ -219,44 +148,44 @@ function classifySearchError(err: unknown): WebToolError {
     typeof err === "object" &&
     err !== null &&
     "status" in err &&
-    typeof (err as any).status === "number"
-      ? (err as any).status
+    typeof (err as { status?: unknown }).status === "number"
+      ? (err as { status: number }).status
       : undefined;
 
   if (status === 401 || status === 403) {
-    recordSearchFailure("brave", "WEB_SEARCH_AUTH_REQUIRED", Date.now());
+    recordSearchFailure(providerName, "WEB_SEARCH_AUTH_REQUIRED", Date.now());
     return error(
       "WEB_SEARCH_AUTH_REQUIRED",
-      `Brave Search authentication failed (HTTP ${status}). Check BRAVE_SEARCH_API_KEY and account permissions.`
+      `${displayName} authentication failed (HTTP ${status}). Check provider credentials and account permissions.`
     );
   }
 
   if (status === 429) {
-    recordSearchFailure("brave", "WEB_SEARCH_RATE_LIMIT", Date.now());
+    recordSearchFailure(providerName, "WEB_SEARCH_RATE_LIMIT", Date.now());
     return error(
       "WEB_SEARCH_RATE_LIMIT",
-      "Brave Search rate limit reached (HTTP 429). Retry later or reduce query frequency."
+      `${displayName} rate limit reached (HTTP 429). Retry later or reduce query frequency.`
     );
   }
 
   if (typeof status === "number" && status >= 500) {
-    recordSearchFailure("brave", "WEB_SEARCH_PROVIDER_ERROR", Date.now());
+    recordSearchFailure(providerName, "WEB_SEARCH_PROVIDER_ERROR", Date.now());
     return error(
       "WEB_SEARCH_PROVIDER_ERROR",
-      `Brave Search provider temporary error (HTTP ${status}). Retry later.`
+      `${displayName} temporary provider error (HTTP ${status}). Retry later.`
     );
   }
 
   const lower = message.toLowerCase();
   if (lower.includes("fetch failed") || lower.includes("enotfound") || lower.includes("econn")) {
-    recordSearchFailure("brave", "WEB_SEARCH_NETWORK_ERROR", Date.now());
+    recordSearchFailure(providerName, "WEB_SEARCH_NETWORK_ERROR", Date.now());
     return error(
       "WEB_SEARCH_NETWORK_ERROR",
-      `Network error while calling Brave Search: ${message}. Check network connectivity and DNS.`
+      `Network error while calling ${displayName}: ${message}. Check network connectivity and DNS.`
     );
   }
 
-  recordSearchFailure("brave", "WEB_SEARCH_FAILED", Date.now());
+  recordSearchFailure(providerName, "WEB_SEARCH_FAILED", Date.now());
   return error("WEB_SEARCH_FAILED", message);
 }
 
@@ -270,10 +199,12 @@ export async function webSearch(
     return error("INVALID_INPUT", "web_search requires query or queries");
   }
 
-  if (config.webTools.provider !== "brave") {
-    return error("INVALID_INPUT", `Unsupported web_search provider: ${config.webTools.provider}`);
+  const selection = await selectSearchProvider(config);
+  if (!selection.ok) {
+    return selection.error;
   }
 
+  const provider = selection.provider;
   const numResults = normalizeNumResults(params, config);
 
   try {
@@ -281,7 +212,7 @@ export async function webSearch(
     for (const query of queries) {
       queryResults.push({
         query,
-        results: await braveSearch(query, numResults, config, signal),
+        results: await provider.search({ query, numResults, signal }, config),
       });
     }
 
@@ -291,6 +222,7 @@ export async function webSearch(
 
     const responseId = storeResult({ type: "search", queries: queryResults });
     webDebugLog("web_search success", {
+      provider: provider.name,
       queries: queryResults.length,
       responseId,
       includeContent: params.includeContent === true,
@@ -300,8 +232,9 @@ export async function webSearch(
       queries: limitSearchOutput(queryResults, config.webTools.maxContentChars),
     };
   } catch (err) {
-    const classified = classifySearchError(err);
+    const classified = classifySearchError(err, provider.name);
     webDebugLog("web_search failed", {
+      provider: provider.name,
       code: classified.error.code,
       message: classified.error.message,
     });
