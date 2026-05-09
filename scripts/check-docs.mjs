@@ -3,7 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const allowedStatus = new Set(["current", "historical", "proposed"]);
+const allowedDocStatus = new Set(["current", "historical", "proposed"]);
+const allowedAdrStatus = new Set(["proposed", "accepted", "rejected", "deprecated", "superseded"]);
 const allowedAudience = new Set(["user", "maintainer", "all"]);
 const errors = [];
 
@@ -33,6 +34,10 @@ function parseFrontmatter(content) {
   return data;
 }
 
+function allowedStatusFor(file) {
+  return /^docs\/adr\/\d{4}-/.test(file) ? allowedAdrStatus : allowedDocStatus;
+}
+
 function checkDocFrontmatter() {
   for (const file of walk("docs").filter((f) => f.endsWith(".md"))) {
     const fm = parseFrontmatter(read(file));
@@ -40,7 +45,7 @@ function checkDocFrontmatter() {
       errors.push(`${file}: missing frontmatter`);
       continue;
     }
-    if (!allowedStatus.has(fm.status)) {
+    if (!allowedStatusFor(file).has(fm.status)) {
       errors.push(`${file}: invalid status '${fm.status}'`);
     }
     if (!allowedAudience.has(fm.audience)) {

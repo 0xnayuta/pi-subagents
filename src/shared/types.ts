@@ -200,11 +200,17 @@ export interface WebToolsConfig {
   serper?: ApiKeyProviderConfig;
 }
 
+export interface SubagentRetryConfig {
+  enabled?: boolean;
+  maxAttempts?: number;
+}
+
 export interface ExtensionConfig {
   enabled?: boolean;
   maxSubagentDepth?: number;
   timeoutMs?: number;
   allowWriteSubagents?: boolean;
+  retry?: SubagentRetryConfig;
   /**
    * Inject delegation policy + few-shot examples into the parent agent's
    * system prompt. Guides the model to delegate focused tasks to specialized
@@ -231,7 +237,8 @@ export type ResolvedWebToolsConfig = Required<
   connectionPool: Required<ConnectionPoolConfig>;
 };
 
-export type ResolvedExtensionConfig = Required<Omit<ExtensionConfig, "webTools">> & {
+export type ResolvedExtensionConfig = Required<Omit<ExtensionConfig, "webTools" | "retry">> & {
+  retry: Required<SubagentRetryConfig>;
   webTools: ResolvedWebToolsConfig;
 };
 

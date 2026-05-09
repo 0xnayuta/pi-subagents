@@ -65,6 +65,10 @@ export const DEFAULT_CONFIG: ResolvedExtensionConfig = {
   timeoutMs: 120000,
   allowWriteSubagents: false,
   injectDelegationPolicy: true,
+  retry: {
+    enabled: true,
+    maxAttempts: 2,
+  },
   webTools: DEFAULT_WEB_TOOLS_CONFIG,
 };
 
@@ -268,6 +272,10 @@ export function mergeConfig(base: ExtensionConfig): ResolvedExtensionConfig {
       base.injectDelegationPolicy,
       DEFAULT_CONFIG.injectDelegationPolicy
     ),
+    retry: {
+      enabled: booleanValue(base.retry?.enabled, DEFAULT_CONFIG.retry.enabled),
+      maxAttempts: positiveInteger(base.retry?.maxAttempts, DEFAULT_CONFIG.retry.maxAttempts),
+    },
     webTools: normalizeWebToolsConfig(base.webTools),
   };
 }

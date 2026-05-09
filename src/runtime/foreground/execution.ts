@@ -9,10 +9,14 @@ import type { Usage } from "../../shared/types.ts";
 import { getPiSpawnCommand } from "../shared/pi-spawn.ts";
 import { collectOutput } from "./collect-output.ts";
 
-interface RunSyncResult {
+export interface RunSyncResult {
   exitCode: number;
   output: string;
   usage?: Usage;
+  error?: string;
+  partialOutput?: string;
+  final: boolean;
+  lastEventType?: string;
 }
 
 interface RunSyncOptions {
@@ -83,16 +87,24 @@ export async function runSync(
 
       const collected = collectOutput(output);
       let finalOutput = collected.output;
+      let error = collected.error;
 
-      // Append stderr to processed output if there's an error
+      // Preserve stderr as the primary failure reason when the provider/runtime
+      // writes errors there. Keep stdout-derived text as partial output.
       if (exitCode !== 0 && stderr.trim()) {
-        finalOutput = finalOutput ? `${finalOutput}\n${stderr.trim()}` : stderr.trim();
+        const stderrText = stderr.trim();
+        error = error ? `${error}\n${stderrText}` : stderrText;
+        finalOutput = finalOutput ? `${finalOutput}\n${stderrText}` : stderrText;
       }
 
       resolve({
         exitCode,
         output: finalOutput,
         usage: collected.usage,
+        error,
+        partialOutput: collected.partialOutput,
+        final: collected.final,
+        lastEventType: collected.lastEventType,
       });
     });
 
@@ -103,6 +115,8 @@ export async function runSync(
       resolve({
         exitCode: 1,
         output: `Failed to spawn pi: ${error.message}`,
+        error: `Failed to spawn pi: ${error.message}`,
+        final: false,
       });
     });
   });

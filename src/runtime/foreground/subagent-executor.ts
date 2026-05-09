@@ -26,7 +26,8 @@ import {
 } from "../../shared/types.ts";
 import { buildSubagentChildArgs, cleanupTempDir } from "../shared/pi-args.ts";
 import { buildChildPrompt } from "../shared/subagent-prompt-runtime.ts";
-import { runSync } from "./execution.ts";
+import { collectOutput } from "./collect-output.ts";
+import { type RunSyncResult, runSync } from "./execution.ts";
 import { sanitizeOutput } from "./sanitize.ts";
 
 export interface SubagentParamsLike {
@@ -98,6 +99,58 @@ function filterToolsForReadonly(agent: AgentConfig, config: ResolvedExtensionCon
   }
 
   return configuredTools;
+}
+
+const TRANSIENT_SUBAGENT_ERROR_PATTERN =
+  /(?:internal_server_error|stream error|INTERNAL_ERROR|ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|rate limit|rate_limit|overloaded|temporarily unavailable|timeout)/i;
+
+function isTransientSubagentError(text: string | undefined): boolean {
+  return Boolean(text && TRANSIENT_SUBAGENT_ERROR_PATTERN.test(text));
+}
+
+function readSessionDiagnostics(sessionFile: string): { error?: string; partialOutput?: string } {
+  try {
+    if (!fs.existsSync(sessionFile)) return {};
+    const collected = collectOutput(fs.readFileSync(sessionFile, "utf-8"));
+    return {
+      error: collected.error,
+      partialOutput: collected.partialOutput ?? (!collected.final ? collected.output : undefined),
+    };
+  } catch {
+    return {};
+  }
+}
+
+function mergeUniqueText(...values: Array<string | undefined>): string | undefined {
+  const parts: string[] = [];
+  for (const value of values) {
+    const text = value?.trim();
+    if (text && !parts.includes(text)) parts.push(text);
+  }
+  return parts.length > 0 ? parts.join("\n") : undefined;
+}
+
+function formatSubagentFailure(input: {
+  exitCode: number;
+  error?: string;
+  partialOutput?: string;
+  output?: string;
+  sessionFile: string;
+  attempts: number;
+}): string {
+  const sections = [`Subagent failed with exit code ${input.exitCode}.`];
+  if (input.attempts > 1) sections.push(`Attempts: ${input.attempts}.`);
+  if (input.error) sections.push(`Error:\n${input.error}`);
+
+  const partial =
+    input.partialOutput && input.partialOutput !== input.error ? input.partialOutput : undefined;
+  const fallback =
+    !partial && input.output && input.output !== input.error ? input.output : undefined;
+  if (partial) sections.push(`Partial output:\n${partial}`);
+  else if (fallback) sections.push(`Last captured output:\n${fallback}`);
+
+  sections.push(`Session file:\n${input.sessionFile}`);
+  return sections.join("\n\n");
 }
 
 export function createSubagentExecutor(deps: ExecutorDeps): {
@@ -239,69 +292,109 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
       };
     }
 
-    const sessionFile = path.join(sessionDir, "session.jsonl");
-
-    // Build pi arguments
-    const piArgs = buildSubagentChildArgs({
-      mode: "json",
-      systemPrompt,
-      task: params.task,
-      cwd,
-      sessionFile,
-      model: agent.model,
-      tools,
-      env: childEnv,
-    });
-
-    // Run the subagent
+    const maxAttempts = deps.config.retry.enabled ? deps.config.retry.maxAttempts : 1;
     const timeoutMs = deps.config.timeoutMs;
-    const abortController = new AbortController();
-
-    // Set up timeout
-    const timeoutHandle = setTimeout(() => {
-      abortController.abort();
-    }, timeoutMs);
-
-    // Combine external signal with timeout
-    const combinedSignal = AbortSignal.any([signal, abortController.signal]);
 
     let exitCode = 1;
     let output = "";
     let usage: Usage | undefined;
+    let providerError: string | undefined;
+    let partialOutput: string | undefined;
+    let sessionFile = path.join(sessionDir, "session.jsonl");
+    let attemptsUsed = 0;
 
-    try {
-      const result = await runSync(cwd, piArgs.args, {
-        signal: combinedSignal,
-        env: piArgs.env,
-        onUpdate: (update) => {
-          onUpdate?.({
-            content: update.content as any,
-            details: {
-              mode: "single",
-              results: [],
-            },
-          });
-        },
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      attemptsUsed = attempt;
+      sessionFile = path.join(
+        sessionDir,
+        attempt === 1 ? "session.jsonl" : `session-attempt-${attempt}.jsonl`
+      );
+
+      const piArgs = buildSubagentChildArgs({
+        mode: "json",
+        systemPrompt,
+        task: params.task,
+        cwd,
+        sessionFile,
+        model: agent.model,
+        tools,
+        env: childEnv,
       });
 
-      exitCode = result.exitCode;
-      output = result.output || "";
-      usage = result.usage;
-    } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") {
-        // Check if it was timeout or user abort
-        if (signal.aborted) {
-          output = "Subagent execution was cancelled by user.";
+      const abortController = new AbortController();
+      const timeoutHandle = setTimeout(() => {
+        abortController.abort();
+      }, timeoutMs);
+      const combinedSignal = AbortSignal.any([signal, abortController.signal]);
+
+      try {
+        const result: RunSyncResult = await runSync(cwd, piArgs.args, {
+          signal: combinedSignal,
+          env: piArgs.env,
+          onUpdate: (update) => {
+            onUpdate?.({
+              content: update.content as any,
+              details: {
+                mode: "single",
+                results: [],
+              },
+            });
+          },
+        });
+
+        exitCode = result.exitCode;
+        output = result.output || "";
+        usage = result.usage;
+        providerError = result.error;
+        partialOutput = result.partialOutput;
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") {
+          if (signal.aborted) {
+            output = "Subagent execution was cancelled by user.";
+          } else {
+            exitCode = 124;
+            output = `Subagent timed out after ${timeoutMs}ms.`;
+            providerError = output;
+          }
         } else {
-          exitCode = 124; // Standard timeout exit code
-          output = `Subagent timed out after ${timeoutMs}ms.`;
+          const message = error instanceof Error ? error.message : String(error);
+          output = `Subagent execution failed: ${message}`;
+          providerError = output;
         }
-      } else {
-        const message = error instanceof Error ? error.message : String(error);
-        output = `Subagent execution failed: ${message}`;
+      } finally {
+        clearTimeout(timeoutHandle);
+        cleanupTempDir(piArgs.tempDir);
       }
-    } finally {
-      cleanupTempDir(piArgs.tempDir);
+
+      if (exitCode !== 0) {
+        const sessionDiagnostics = readSessionDiagnostics(sessionFile);
+        providerError = mergeUniqueText(providerError, sessionDiagnostics.error);
+        partialOutput = mergeUniqueText(partialOutput, sessionDiagnostics.partialOutput);
+      }
+
+      const retrySignalText = mergeUniqueText(providerError, output, partialOutput);
+      if (
+        exitCode !== 0 &&
+        attempt < maxAttempts &&
+        !signal.aborted &&
+        exitCode !== 124 &&
+        isTransientSubagentError(retrySignalText)
+      ) {
+        continue;
+      }
+
+      break;
+    }
+
+    if (exitCode !== 0) {
+      output = formatSubagentFailure({
+        exitCode,
+        error: providerError,
+        partialOutput,
+        output,
+        sessionFile,
+        attempts: attemptsUsed,
+      });
     }
 
     // Determine error code if execution failed
@@ -311,8 +404,6 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
     } else if (exitCode !== 0) {
       errorCode = MVP_ERROR_CODES.SUBAGENT_FAILED;
     }
-
-    clearTimeout(timeoutHandle);
 
     // Sanitize output
     const sanitizedOutput = sanitizeOutput(output);

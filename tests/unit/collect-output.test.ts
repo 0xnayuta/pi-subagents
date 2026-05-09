@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { collectOutput, extractFinalOutput, extractUsage, parseJsonLines } from "../../src/runtime/foreground/collect-output.ts";
+import { collectOutput, extractFinalOutput, extractProviderError, extractUsage, parseJsonLines } from "../../src/runtime/foreground/collect-output.ts";
 
 function line(value: unknown): string {
 	return `${JSON.stringify(value)}\n`;
@@ -66,9 +66,52 @@ describe("collect output", () => {
 		assert.ok(!result.output.includes('"type":"session"'));
 	});
 
+	it("extracts provider errors from session message records", () => {
+		const messages = parseJsonLines(
+			line({
+				type: "message",
+				message: {
+					role: "assistant",
+					content: [{ type: "text", text: "Error Code internal_server_error: stream error: stream ID 9367; INTERNAL_ERROR;" }],
+				},
+			}),
+		);
+
+		assert.equal(
+			extractProviderError(messages),
+			"Error Code internal_server_error: stream error: stream ID 9367; INTERNAL_ERROR;",
+		);
+	});
+
+	it("separates provider error from partial assistant output", () => {
+		const raw = [
+			line({
+				type: "message_end",
+				message: {
+					role: "assistant",
+					content: [{ type: "text", text: "Let me check the docs first." }],
+					stopReason: "toolUse",
+				},
+			}),
+			line({
+				type: "message",
+				message: {
+					role: "assistant",
+					content: [{ type: "text", text: "Error Code internal_server_error: stream error: INTERNAL_ERROR" }],
+				},
+			}),
+		].join("");
+
+		const result = collectOutput(raw);
+		assert.equal(result.final, false);
+		assert.equal(result.error, "Error Code internal_server_error: stream error: INTERNAL_ERROR");
+		assert.equal(result.partialOutput, "Let me check the docs first.");
+	});
+
 	it("preserves non-JSON output", () => {
 		const result = collectOutput("plain text output\n");
 		assert.equal(result.output, "plain text output");
+		assert.equal(result.final, true);
 	});
 
 	it("extracts usage from the last usage-bearing message", () => {

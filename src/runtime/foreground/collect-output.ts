@@ -74,10 +74,38 @@ function extractTextFromMessageEvent(message: OutputMessage): string {
 /**
  * Extract final assistant output from pi messages
  */
+function extractTextFromSessionMessage(message: OutputMessage): string {
+  if (message.type !== "message") return "";
+  return extractAssistantText(message.message);
+}
+
+function extractTextFromAnyAssistantMessage(message: OutputMessage): string {
+  return extractTextFromMessageEvent(message) || extractTextFromSessionMessage(message);
+}
+
+function isFinalAssistantMessage(message: OutputMessage): boolean {
+  if (message.type === "result") return true;
+  if (message.type !== "turn_end" && message.type !== "message_end" && message.type !== "message") {
+    return false;
+  }
+
+  const nested = isRecord(message.message) ? message.message : undefined;
+  if (!nested || nested.role !== "assistant") return false;
+
+  const stopReason = asString(nested.stopReason);
+  if (stopReason === "toolUse") return false;
+
+  const content = Array.isArray(nested.content) ? nested.content : [];
+  const text = extractTextFromContent(content);
+  if (text && PROVIDER_ERROR_PATTERN.test(text)) return false;
+  return Boolean(text);
+}
+
 export function extractFinalOutput(messages: OutputMessage[]): string {
   // Prefer completed assistant messages from the real pi JSONL event stream.
   for (let i = messages.length - 1; i >= 0; i--) {
-    const text = extractTextFromMessageEvent(messages[i]);
+    if (!isFinalAssistantMessage(messages[i])) continue;
+    const text = extractTextFromAnyAssistantMessage(messages[i]);
     if (text) return text;
   }
 
@@ -87,6 +115,57 @@ export function extractFinalOutput(messages: OutputMessage[]): string {
     if (message.type === "result" && typeof message.output === "string" && message.output.trim()) {
       return message.output.trim();
     }
+  }
+
+  return "";
+}
+
+const PROVIDER_ERROR_PATTERN =
+  /(?:Error Code|internal_server_error|stream error|INTERNAL_ERROR|ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|rate limit|rate_limit|overloaded|provider error|server error|API error|network error|timeout)/i;
+
+function formatErrorObject(value: unknown): string {
+  if (typeof value === "string") return value.trim();
+  if (!isRecord(value)) return "";
+
+  const code = asString(value.code) ?? asString(value.name) ?? asString(value.type);
+  const message = asString(value.message) ?? asString(value.error) ?? asString(value.details);
+  if (code && message) return `${code}: ${message}`.trim();
+  return (message ?? code ?? "").trim();
+}
+
+function extractErrorFromContent(content: unknown): string {
+  const text = extractTextFromContent(content);
+  return PROVIDER_ERROR_PATTERN.test(text) ? text : "";
+}
+
+function extractLastNonErrorAssistantText(messages: OutputMessage[]): string {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const text = extractTextFromAnyAssistantMessage(messages[i]);
+    if (text && !PROVIDER_ERROR_PATTERN.test(text)) return text;
+  }
+  return "";
+}
+
+export function extractProviderError(messages: OutputMessage[]): string {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i];
+
+    const directError = formatErrorObject(message.error);
+    if (directError) return directError;
+
+    if (isRecord(message.message)) {
+      const nestedError = formatErrorObject(message.message.error);
+      if (nestedError) return nestedError;
+
+      const nestedTextError = extractErrorFromContent(message.message.content);
+      if (nestedTextError) return nestedTextError;
+
+      const nestedMessage = asString(message.message.message);
+      if (nestedMessage && PROVIDER_ERROR_PATTERN.test(nestedMessage)) return nestedMessage.trim();
+    }
+
+    const directMessage = asString(message.message);
+    if (directMessage && PROVIDER_ERROR_PATTERN.test(directMessage)) return directMessage.trim();
   }
 
   return "";
@@ -148,24 +227,44 @@ function summarizeJsonlWithoutFinalText(messages: OutputMessage[]): string {
 /**
  * Collect and process output from pi subprocess
  */
-export function collectOutput(rawOutput: string): {
+export interface CollectedOutput {
   output: string;
   usage?: Usage;
   truncated: boolean;
-} {
+  /** True when output came from a completed assistant/result message. */
+  final: boolean;
+  /** Provider/runtime error extracted from JSONL events when present. */
+  error?: string;
+  /** Last assistant text when no completed final answer was found. */
+  partialOutput?: string;
+  lastEventType?: string;
+}
+
+/**
+ * Collect and process output from pi subprocess
+ */
+export function collectOutput(rawOutput: string): CollectedOutput {
   const messages = parseJsonLines(rawOutput);
   const output = extractFinalOutput(messages);
   const usage = extractUsage(messages);
+  const error = extractProviderError(messages) || undefined;
+  const lastEventType = messages.at(-1)?.type;
 
   if (output) {
-    return { output, usage, truncated: false };
+    return { output, usage, truncated: false, final: true, error, lastEventType };
   }
 
   if (messages.length > 0) {
+    const partialOutput = extractLastNonErrorAssistantText(messages) || undefined;
+    const fallbackOutput = error ?? partialOutput ?? summarizeJsonlWithoutFinalText(messages);
     return {
-      output: summarizeJsonlWithoutFinalText(messages),
+      output: fallbackOutput,
       usage,
       truncated: false,
+      final: false,
+      error,
+      partialOutput,
+      lastEventType,
     };
   }
 
@@ -173,5 +272,6 @@ export function collectOutput(rawOutput: string): {
     output: rawOutput.trim(),
     usage,
     truncated: false,
+    final: Boolean(rawOutput.trim()),
   };
 }
