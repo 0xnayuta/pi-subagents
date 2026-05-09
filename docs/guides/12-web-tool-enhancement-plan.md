@@ -205,23 +205,28 @@ Full logs: /tmp/pi-subagents-uid-xxx/results/
 ```
 tests/
 ├── unit/                    # 单元测试
-│   ├── observability.test.ts
-│   ├── config.test.ts
-│   ├── agent-loading.test.ts
-│   └── errors.test.ts
-├── mocks/                   # Mock 服务器和数据
-│   ├── providers/
-│   │   ├── ddgs.ts
-│   │   ├── tavily.ts
-│   │   └── searxng.ts
-│   └── fixtures/
-│       ├── search-results.json
-│       └── html-pages/
-├── integration/             # 集成测试
-│   └── spawn-pi.test.ts
-└── test-utils/
-    ├── mock-fetch.ts
-    └── mock-search.ts
+│   ├── observability.test.ts   # 可观测性：activity log、stats、debug logging
+│   ├── errors.test.ts          # 错误码：映射、recovery、格式化
+│   ├── cache.test.ts           # 缓存：LRU、hit/miss、global instance
+│   ├── concurrency.test.ts     # 并发限制：semaphore、queue、reset
+│   ├── web-search.test.ts      # web_search：providers、错误分类、DDGS
+│   ├── web-fetch.test.ts       # fetch_content：安全限制、内容类型
+│   ├── web-storage.test.ts     # get_search_content：存储、回读、truncate
+│   ├── activity-panel.test.ts  # TUI 面板：render、keyboard input
+│   ├── collect-output.test.ts  # 输出收集：JSONL 解析、fallback
+│   ├── path-handling.test.ts   # 跨平台路径处理
+│   ├── pi-spawn.test.ts        # pi 进程启动
+│   ├── subagent-prompt-runtime.test.ts  # prompt runtime
+│   └── commands/
+│       ├── doctor.test.ts      # /subagents doctor
+│       ├── list.test.ts        # /subagents list
+│       └── logs.test.ts        # /subagents logs
+├── mvp/unit/                 # MVP 测试套件
+│   ├── builtin-agents.test.ts  # 5 个内置 agent 发现
+│   ├── config-loading.test.ts  # 配置加载、MVP error codes
+│   └── frontmatter.test.ts     # frontmatter 解析、user agents
+└── mocks/providers/
+    └── ddgs.ts                # DDGS provider mock
 ```
 
 ### 3.2 单元测试覆盖
@@ -231,143 +236,104 @@ tests/
 ```typescript
 // tests/unit/observability.test.ts
 
-describe("ActivityLog", () => {
-  it("should record activity entries", () => {
-    recordActivity({ type: "search", status: "success", duration: 100 });
-    const log = getActivityLog();
-    expect(log).toHaveLength(1);
-  });
+describe("observability - configuration", () => {
+  it("should default debug level to false", () => { ... });
+  it("should support minimal/verbose debug level", () => { ... });
+});
 
-  it("should truncate log to max entries", () => {
-    const maxEntries = 100;
-    for (let i = 0; i < maxEntries + 50; i++) {
-      recordActivity({ type: "search", status: "success" });
-    }
-    expect(getActivityLog()).toHaveLength(maxEntries);
-  });
+describe("observability - stats", () => {
+  it("tracks search success/error/rate-limited and fetch success/error", () => { ... });
+  it("aggregates provider stats with success rate", () => { ... });
+  it("calculates average latency and resets correctly", () => { ... });
+});
 
-  it("should calculate stats correctly", () => {
-    recordActivity({ type: "search", status: "success", duration: 100 });
-    recordActivity({ type: "search", status: "error", duration: 50 });
-    const stats = getStats();
-    expect(stats.totalRequests).toBe(2);
-    expect(stats.successCount).toBe(1);
-    expect(stats.errorCount).toBe(1);
-  });
+describe("observability - activity log", () => {
+  it("should record search/fetch activity entries", () => { ... });
+  it("should limit activity log to 100 entries", () => { ... });
+  it("should clear activity log", () => { ... });
+});
+
+describe("observability - debug logging", () => {
+  it("does not output logs when debug is disabled", () => { ... });
+  it("outputs minimal/verbose debug logs when enabled", () => { ... });
+  it("debug logs can be toggled on and off", () => { ... });
 });
 ```
 
-#### Config 模块
+#### Web Tools 模块
 
 ```typescript
-// tests/unit/config.test.ts
+// tests/unit/web-search.test.ts
 
-describe("Config Loading", () => {
-  it("should load config from default path", () => { ... });
-  it("should merge with defaults for missing fields", () => { ... });
-  it("should reject invalid values", () => { ... });
-  it("should support environment variable overrides", () => { ... });
+describe("web_search", () => {
+  it("returns structured error when query is missing", () => { ... });
+  it("uses ddgs by default when no commercial keys are set", () => { ... });
+  it("prefers keyed commercial providers in auto mode", () => { ... });
+  it("supports explicit providers (tavily, serper, searxng, brave, openserp)", () => { ... });
+  it("classifies provider rate limit errors", () => { ... });
+  it("classifies timeout/abort with actionable guidance", () => { ... });
+  it("caps ddgs results at 5 regardless of numResults request", () => { ... });
+  it("normalizes multiple queries and stores search results", () => { ... });
 });
 
-describe("Config Normalization", () => {
-  it("should normalize provider priority", () => { ... });
-  it("should filter invalid providers", () => { ... });
-  it("should handle boolean string values", () => { ... });
+// tests/unit/web-fetch.test.ts
+
+describe("fetch_content", () => {
+  it("returns structured error when URL is missing", () => { ... });
+  it("rejects non-http URLs (file://)", () => { ... });
+  it("rejects localhost/private URLs before fetching", () => { ... });
+  it("rejects unsupported content types (json, image, binary)", () => { ... });
+  it("falls back to Jina reader for JS-heavy pages when enabled", () => { ... });
+  it("limits the number of response bytes read", () => { ... });
+});
+
+// tests/unit/web-storage.test.ts
+
+describe("web storage get_search_content", () => {
+  it("returns clear error for unknown responseId", () => { ... });
+  it("retrieves fetch content by urlIndex/url", () => { ... });
+  it("retrieves search content by queryIndex/query", () => { ... });
+  it("returns actionable hints for selector errors", () => { ... });
+  it("enforces storage max entries and per-item size", () => { ... });
 });
 ```
 
-#### Agent Loading
+#### MVP 测试套件
 
 ```typescript
-// tests/unit/agent-loading.test.ts
+// tests/mvp/unit/builtin-agents.test.ts
 
-describe("Agent Discovery", () => {
-  it("should discover builtin agents from agents/ directory", () => { ... });
-  it("should load user agents from ~/.pi/agent/agents/", () => { ... });
-  it("should load project agents from .pi/agents/", () => { ... });
-  it("should deduplicate by name (project > user > builtin)", () => { ... });
-  it("should skip files without valid frontmatter", () => { ... });
+describe("MVP Built-in Agents Discovery", () => {
+  it("[MVP TARGET] discovers exactly 5 builtin agents", () => { ... });
+  it("[MVP TARGET] each builtin agent has required properties", () => { ... });
+  it("[MVP TARGET] explorer has safe exploration tools", () => { ... });
+  it("[MVP TARGET] researcher has web search, reviewer has read/grep", () => { ... });
 });
 
-describe("Agent Validation", () => {
-  it("should require name in frontmatter", () => { ... });
-  it("should parse tools from comma-separated string", () => { ... });
-  it("should default readonly to true if not specified", () => { ... });
+describe("MVP Removed Builtin Agents", () => {
+  it("[MVP TARGET] legacy agents are not present", () => { ... });
 });
-```
 
-#### Error Codes
+// tests/mvp/unit/config-loading.test.ts
 
-```typescript
-// tests/unit/errors.test.ts
-
-describe("Error Handling", () => {
-  it("should map provider errors to correct error codes", () => { ... });
-  it("should include recovery suggestions", () => { ... });
-  it("should preserve original error details", () => { ... });
+describe("MVP Config Loading", () => {
+  it("has correct MVP default values", () => { ... });
+  it("has correct webTools providerPriority", () => { ... });
+  it("merges partial webTools config with defaults", () => { ... });
+  it("validates depth and timeout ranges", () => { ... });
+  it("has exactly 8 error codes", () => { ... });
+  it("SubagentParams has required agent/task, excludes legacy params", () => { ... });
 });
-```
 
-### 3.3 Provider Mock 测试
+// tests/mvp/unit/frontmatter.test.ts
 
-```typescript
-// tests/mocks/providers/ddgs.ts
-
-export function createDdgsMock() {
-  return {
-    search: jest.fn().mockResolvedValue({
-      results: [...],
-      next: "mock_cursor",
-    }),
-  };
-}
-
-// tests/unit/ddgs-provider.test.ts
-
-describe("DDGS Provider", () => {
-  let mock: ReturnType<typeof createDdgsMock>;
-
-  beforeEach(() => {
-    mock = createDdgsMock();
-  });
-
-  it("should parse response into normalized format", async () => {
-    const result = await mock.search({ query: "test" });
-    expect(result).toMatchSchema(normalizedSearchSchema);
-  });
-
-  it("should handle rate limit gracefully", async () => {
-    mock.search.mockRejectedValueOnce({ status: 429 });
-    // Should fallback to next provider
-  });
+describe("MVP Simple Frontmatter Parsing", () => {
+  it("parses name, description, readonly, tools, and systemPrompt", () => { ... });
+  it("sets source to 'project' for project agents", () => { ... });
 });
-```
 
-### 3.4 集成测试
-
-```typescript
-// tests/integration/spawn-pi.test.ts
-
-describe("Pi Spawn Integration", () => {
-  it("should execute subagent and return result", async () => {
-    const result = await spawnPi({
-      agent: "explorer",
-      task: "find files matching *.ts",
-    });
-
-    expect(result.exitCode).toBe(0);
-    expect(result.output).toContain("found");
-  }, 30000);
-
-  it("should handle timeout correctly", async () => {
-    const result = await spawnPi({
-      agent: "researcher",
-      task: "search indefinitely",
-      timeoutMs: 100,
-    });
-
-    expect(result.exitCode).toBe(124); // Timeout exit code
-  });
+describe("MVP Removed Frontmatter Features", () => {
+  it("does not parse 'package', 'inheritSkills', 'defaultContext' frontmatter", () => { ... });
 });
 ```
 
@@ -383,11 +349,14 @@ pnpm test:unit
 # 运行 MVP 测试套件
 pnpm test:mvp
 
-# 运行带 coverage 的测试
-pnpm test:coverage
+# 一键格式化 + 检查
+pnpm lint:fix
 
-# 运行特定 provider 测试
-pnpm test:unit -- --testPathPattern="providers"
+# 类型检查
+pnpm typecheck
+
+# 文档一致性检查
+pnpm docs:check
 ```
 
 ---
@@ -824,29 +793,19 @@ src/extension/
 
 ### Phase 3: 测试框架 (1.5 天)
 
-```
-tests/
-├── unit/
-│   ├── observability.test.ts
-│   ├── config.test.ts
-│   ├── agent-loading.test.ts
-│   └── errors.test.ts
-├── mocks/
-│   └── providers/
-│       └── ddgs.ts
-└── integration/
-    └── spawn-pi.test.ts
-```
-
 实现步骤：
-- [ ] 设置 Vitest 测试框架
-- [ ] 创建 mock utilities
-- [ ] 实现 observability 单元测试
-- [ ] 实现 config 单元测试
-- [ ] 实现 agent loading 单元测试
-- [ ] 实现 provider mock 测试
-- [ ] 实现集成测试
-- [ ] 添加 npm scripts
+- [x] 设置 Node.js 原生测试框架 (`node:test`)
+- [x] 创建 mock utilities (`tests/mocks/providers/ddgs.ts`)
+- [x] 实现 observability 单元测试 (`tests/unit/observability.test.ts`)
+- [x] 实现 cache 单元测试 (`tests/unit/cache.test.ts`)
+- [x] 实现 concurrency 单元测试 (`tests/unit/concurrency.test.ts`)
+- [x] 实现 errors 单元测试 (`tests/unit/errors.test.ts`)
+- [x] 实现 web-search/fetch/storage 单元测试
+- [x] 实现 activity-panel 单元测试 (`tests/unit/activity-panel.test.ts`)
+- [x] 实现 commands 单元测试 (`doctor, list, logs`)
+- [x] 实现 collect-output 单元测试 (`tests/unit/collect-output.test.ts`)
+- [x] 实现 MVP 测试套件 (`tests/mvp/unit/`)
+- [x] 添加 npm scripts (`test:unit`, `test:mvp`)
 
 ### Phase 4: 性能优化 (1-2 天)
 
@@ -946,5 +905,5 @@ src/web/
 ## 十、测试结果
 
 ```bash
-pnpm test  # 163 tests, 27 suites, all passed
+pnpm test  # 138 tests, 25 suites, all passed
 ```
