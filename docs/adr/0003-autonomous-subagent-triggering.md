@@ -1,7 +1,7 @@
 ---
 status: proposed
 audience: maintainer
-last_verified: 2026-05-08
+last_verified: 2026-05-10
 ---
 
 # ADR 0003：自主触发子代理的改进方案
@@ -24,57 +24,176 @@ Proposed
 
 ## 方案
 
-### 方案 A：增强工具 Description
+### 方案 A：语义意图描述 + Few-shot 示例驱动
 
-在 `subagent` 工具的 `description` 中加入委托触发指引，例如：
+在主代理的 system prompt 中注入**语言无关的语义意图描述**和**多语言对话示例**，引导模型在合适场景下委托子代理。
+
+#### A.1 语义意图描述
+
+不依赖关键词匹配，而是用语义描述定义何时委托：
 
 ```
-IMPORTANT: Prefer this tool when the user's request involves:
-- "find" / "search" / "locate" / "where is" → use explorer
-- "research" / "compare" / "investigate" / "pros and cons" → use researcher
-- "review" / "audit" / "check" / "diff" → use reviewer
-- "plan" / "design" / "how to implement" → use implementer
-- "test" / "coverage" / "edge cases" → use tester
-```
-
-- **优点**：改动最小，零架构侵入
-- **缺点**：description 权重低于 system prompt，模型可能仍然忽略
-
-### 方案 B：通过 `before_agent_start` 注入委托策略
-
-利用已有的 `before_agent_start` hook，向主代理的 system prompt 追加一段"委托策略"指引：
-
-```typescript
-pi.on("before_agent_start", async (event) => {
-  // ... 现有子代理 prompt 处理逻辑 ...
-
-  const delegationPolicy = `
 ## Subagent Delegation Policy
+
 When the user's request matches a subagent's specialty, prefer delegating:
-- Code search/navigation → explorer
-- Web research → researcher
-- Code review → reviewer
-- Implementation planning → implementer
-- Test planning → tester
-`;
-  // 追加到 system prompt
-});
+
+- **explorer**: Locating, navigating, or searching code/files in the codebase
+- **researcher**: Investigating external resources, comparing technologies, synthesizing information
+- **reviewer**: Evaluating code quality, checking for issues, analyzing architecture
+- **implementer**: Planning implementation, designing solutions, architecting features
+- **tester**: Designing test strategies, identifying edge cases, planning coverage
+
+Delegate when the task is focused and benefits from specialized tools.
+Handle directly when the task is simple, requires immediate action, or is too small to benefit from delegation.
 ```
 
-- **优点**：system prompt 权重高，模型更容易遵循
-- **缺点**：更侵入式，可能与用户自定义 system prompt 冲突；建议做成可配置项（如 `injectDelegationPolicy: true`）
+**语言无关性**：语义描述天然支持多语言——模型能将任何语言的用户输入映射到语义概念，无需为每种语言维护关键词列表。
+
+#### A.2 Few-shot 示例
+
+在 system prompt 中提供具体的对话示例，展示委托行为：
+
+```
+## Delegation Examples
+
+User: "Find where authentication is implemented"
+→ Delegate to explorer
+
+User: "帮我找一下认证模块在哪里"
+→ Delegate to explorer
+
+User: "Compare React and Vue for this project"
+→ Delegate to researcher
+
+User: "审查这段代码的安全性"
+→ Delegate to reviewer
+
+User: "How should I implement the payment flow?"
+→ Delegate to implementer
+
+User: "规划一下这个功能的测试方案"
+→ Delegate to tester
+```
+
+**优势**：
+- LLM 从示例学习比从规则列表更有效
+- 自然展示多语言场景（中英各 1-2 个示例）
+- 能展示复杂场景（不仅仅是单句触发）
+
+- **优点**：
+  - 语义描述对 LLM 来说比关键词列表更易理解
+  - 天然语言无关，不需要为每种语言维护关键词
+  - 示例驱动，模型学习效果更好
+  - 通过 `before_agent_start` 注入 system prompt，权重高
+  - 可做成可配置项，用户可选择启用/禁用
+- **缺点**：
+  - 需要修改配置类型和 runtime 逻辑
+  - 示例消耗额外 token
+  - 可能与用户自定义 system prompt 冲突（通过配置项缓解）
 
 ## 决策
 
-采用**方案 A + B 分层推进**：
+采用**方案 A（语义意图 + Few-shot 示例）**：
 
-| 阶段 | 方案 | 说明 |
+| 层次 | 内容 | 作用 |
 |------|------|------|
-| 近期 | A | 增强 tool description，改动最小，立即可做 |
-| 中期 | B | 通过 hook 注入委托策略，做成可配置项 |
+| System Prompt | 语义意图描述 | 告诉模型"什么情况该委托" |
+| System Prompt | 2-3 个多语言示例 | 展示具体怎么委托 |
+| Tool Description | 保持现状 | 告诉模型"工具能做什么" |
 
 ## 影响
 
-- 方案 A 仅修改 `src/extension/index.ts` 中工具描述文本
-- 方案 B 需修改 `src/runtime/shared/subagent-prompt-runtime.ts` 和 `src/shared/types.ts`（新增配置项）
-- 后续实施需新增 ADR 记录最终决策
+### 文件变更
+
+| 文件 | 变更 |
+|------|------|
+| `src/shared/types.ts` | 新增 `injectDelegationPolicy?: boolean` 配置项 |
+| `src/shared/delegation-policy.ts` | **新增**：委托策略文本常量 |
+| `src/extension/index.ts` | 新增 `before_agent_start` handler 注入委托策略 |
+| `src/config/load-config.ts` | 处理新配置项（默认 `true`） |
+
+### 实现细节
+
+#### 1. 新增配置项
+
+在 `ExtensionConfig` 中添加：
+
+```typescript
+export interface ExtensionConfig {
+  // ... existing fields ...
+  injectDelegationPolicy?: boolean;  // 默认 true
+}
+```
+
+#### 2. 委托策略文本 (`src/shared/delegation-policy.ts`)
+
+```typescript
+export const DELEGATION_POLICY = `
+## Subagent Delegation Policy
+
+When the user's request matches a subagent's specialty, prefer delegating:
+
+- **explorer**: Locating, navigating, or searching code/files in the codebase
+- **researcher**: Investigating external resources, comparing technologies, synthesizing information
+- **reviewer**: Evaluating code quality, checking for issues, analyzing architecture
+- **implementer**: Planning implementation, designing solutions, architecting features
+- **tester**: Designing test strategies, identifying edge cases, planning coverage
+
+Delegate when the task is focused and benefits from specialized tools.
+Handle directly when the task is simple, requires immediate action, or is too small to benefit from delegation.
+`;
+
+export const DELEGATION_EXAMPLES = `
+## Delegation Examples
+
+User: "Find where authentication is implemented"
+→ Delegate to explorer
+
+User: "帮我找一下认证模块在哪里"
+→ Delegate to explorer
+
+User: "Compare React and Vue for this project"
+→ Delegate to researcher
+
+User: "审查这段代码的安全性"
+→ Delegate to reviewer
+
+User: "How should I implement the payment flow?"
+→ Delegate to implementer
+
+User: "规划一下这个功能的测试方案"
+→ Delegate to tester
+`;
+```
+
+#### 3. 注入逻辑 (`src/extension/index.ts`)
+
+```typescript
+pi.on("before_agent_start", async (event) => {
+  if (!effectiveConfig.injectDelegationPolicy) return;
+  
+  // Only inject into parent agent, not child subagents
+  if (process.env[PI_SUBAGENT_CHILD] === "1") return;
+  
+  const policy = DELEGATION_POLICY + DELEGATION_EXAMPLES;
+  const newPrompt = event.systemPrompt + "\n\n" + policy;
+  
+  return { systemPrompt: newPrompt };
+});
+```
+
+#### 4. 配置加载 (`src/config/load-config.ts`)
+
+在默认配置中设置 `injectDelegationPolicy: true`。
+
+### Token 开销估算
+
+- 语义意图描述：~150 tokens
+- Few-shot 示例（6 个）：~200 tokens
+- **总计**：~350 tokens（约占 system prompt 的 2-5%）
+
+### 用户自定义冲突缓解
+
+- 默认启用，但用户可通过 `injectDelegationPolicy: false` 禁用
+- 委托策略追加在 system prompt 末尾，优先级低于用户自定义内容
+- 未来可考虑支持用户自定义委托策略文本

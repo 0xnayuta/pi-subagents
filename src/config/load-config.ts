@@ -64,6 +64,7 @@ export const DEFAULT_CONFIG: ResolvedExtensionConfig = {
   maxSubagentDepth: 1,
   timeoutMs: 120000,
   allowWriteSubagents: false,
+  injectDelegationPolicy: true,
   webTools: DEFAULT_WEB_TOOLS_CONFIG,
 };
 
@@ -263,6 +264,10 @@ export function mergeConfig(base: ExtensionConfig): ResolvedExtensionConfig {
     maxSubagentDepth: nonNegativeInteger(base.maxSubagentDepth, DEFAULT_CONFIG.maxSubagentDepth),
     timeoutMs: positiveInteger(base.timeoutMs, DEFAULT_CONFIG.timeoutMs),
     allowWriteSubagents: booleanValue(base.allowWriteSubagents, DEFAULT_CONFIG.allowWriteSubagents),
+    injectDelegationPolicy: booleanValue(
+      base.injectDelegationPolicy,
+      DEFAULT_CONFIG.injectDelegationPolicy
+    ),
     webTools: normalizeWebToolsConfig(base.webTools),
   };
 }

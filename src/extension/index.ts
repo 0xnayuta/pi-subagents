@@ -26,6 +26,7 @@ import {
   createSubagentExecutor,
   type SubagentParamsLike,
 } from "../runtime/foreground/subagent-executor.ts";
+import { DELEGATION_EXAMPLES, DELEGATION_POLICY } from "../shared/delegation-policy.ts";
 import { resolveCurrentSessionId } from "../shared/session-identity.ts";
 import {
   checkSubagentDepth,
@@ -195,6 +196,19 @@ Example:
 
   // Register developer commands
   registerDeveloperCommands(pi);
+
+  // Inject delegation policy into parent agent's system prompt
+  pi.on("before_agent_start", async (event) => {
+    if (!effectiveConfig.injectDelegationPolicy) return;
+
+    // Only inject into parent agent, not child subagents
+    if (process.env[PI_SUBAGENT_CHILD] === "1") return;
+
+    const policy = `${DELEGATION_POLICY}\n\n${DELEGATION_EXAMPLES}`;
+    const newPrompt = `${event.systemPrompt}\n\n${policy}`;
+
+    return { systemPrompt: newPrompt };
+  });
 
   // Session lifecycle handlers
   const resetSessionState = (ctx: ExtensionContext) => {

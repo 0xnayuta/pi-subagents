@@ -205,6 +205,14 @@ export interface ExtensionConfig {
   maxSubagentDepth?: number;
   timeoutMs?: number;
   allowWriteSubagents?: boolean;
+  /**
+   * Inject delegation policy + few-shot examples into the parent agent's
+   * system prompt. Guides the model to delegate focused tasks to specialized
+   * subagents instead of handling everything directly.
+   *
+   * Default: true
+   */
+  injectDelegationPolicy?: boolean;
   webTools?: WebToolsConfig;
 }
 
