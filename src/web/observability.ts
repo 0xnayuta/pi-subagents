@@ -1,44 +1,122 @@
-interface ProviderStats {
+import type { DebugLevel } from "../shared/types.ts";
+
+export interface ActivityEntry {
+  timestamp: number;
+  type: "search" | "fetch" | "get_content";
+  provider?: string;
+  status: "pending" | "success" | "error" | "rate_limited";
+  duration?: number;
+  error?: string;
+  requestId: string;
+}
+
+export interface ProviderStats {
+  requests: number;
+  errors: number;
+  rateLimited: number;
+  totalLatencyMs: number;
+  successRate: number;
+}
+
+export interface WebToolStats {
+  totalRequests: number;
+  successCount: number;
+  errorCount: number;
+  rateLimitedCount: number;
+  averageLatencyMs: number;
+  providerStats: Record<string, ProviderStats>;
+}
+
+interface RawProviderStats {
   calls: number;
   success: number;
   failure: number;
   latencyMsTotal: number;
 }
 
-export interface WebToolStats {
-  search: {
-    calls: number;
-    success: number;
-    failure: number;
-  };
-  fetch: {
-    calls: number;
-    success: number;
-    failure: number;
-  };
-  providers: Record<string, ProviderStats>;
+interface RawStats {
+  search: { calls: number; success: number; failure: number };
+  fetch: { calls: number; success: number; failure: number };
+  providers: Record<string, RawProviderStats>;
   errorCodes: Record<string, number>;
 }
 
-const stats: WebToolStats = {
+const stats: RawStats = {
   search: { calls: 0, success: 0, failure: 0 },
   fetch: { calls: 0, success: 0, failure: 0 },
   providers: {},
   errorCodes: {},
 };
 
-let debugEnabled = false;
+let debugEnabled: DebugLevel = false;
 
-function ensureProvider(provider: string): ProviderStats {
+// Activity log (ring buffer)
+const MAX_ACTIVITY_ENTRIES = 100;
+const activityLog: ActivityEntry[] = [];
+let activityIndex = 0;
+
+function ensureRawProvider(provider: string): RawProviderStats {
   if (!stats.providers[provider]) {
     stats.providers[provider] = { calls: 0, success: 0, failure: 0, latencyMsTotal: 0 };
   }
   return stats.providers[provider];
 }
 
-export function configureWebObservability(debug: boolean): void {
+function addActivityEntry(entry: Omit<ActivityEntry, "requestId">): string {
+  const requestId = `req_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const fullEntry: ActivityEntry = { ...entry, requestId };
+
+  if (activityLog.length < MAX_ACTIVITY_ENTRIES) {
+    activityLog.push(fullEntry);
+  } else {
+    activityLog[activityIndex] = fullEntry;
+  }
+  activityIndex = (activityIndex + 1) % MAX_ACTIVITY_ENTRIES;
+
+  return requestId;
+}
+
+// ============================================================================
+// Configuration
+// ============================================================================
+
+export function configureWebObservability(debug: DebugLevel): void {
   debugEnabled = debug;
 }
+
+export function getDebugLevel(): DebugLevel {
+  return debugEnabled;
+}
+
+// ============================================================================
+// Activity Log API
+// ============================================================================
+
+export function getActivityLog(limit?: number): ActivityEntry[] {
+  if (activityLog.length === 0) return [];
+
+  if (activityLog.length < MAX_ACTIVITY_ENTRIES) {
+    const slice = limit ? activityLog.slice(-limit) : [...activityLog];
+    return slice;
+  }
+
+  // Ring buffer: entries from activityIndex onwards, then from 0 to activityIndex
+  const ordered: ActivityEntry[] = [
+    ...activityLog.slice(activityIndex),
+    ...activityLog.slice(0, activityIndex),
+  ];
+
+  return limit ? ordered.slice(-limit) : ordered;
+}
+
+export function clearActivityLog(): void {
+  activityLog.length = 0;
+  activityIndex = 0;
+}
+
+// ============================================================================
+// Stats API
+// ============================================================================
 
 export function resetWebToolStats(): void {
   stats.search = { calls: 0, success: 0, failure: 0 };
@@ -48,26 +126,61 @@ export function resetWebToolStats(): void {
 }
 
 export function getWebToolStats(): WebToolStats {
-  return JSON.parse(JSON.stringify(stats)) as WebToolStats;
+  const total = stats.search.calls + stats.fetch.calls;
+  const totalSuccess = stats.search.success + stats.fetch.success;
+  const totalError = stats.search.failure + stats.fetch.failure;
+
+  // Calculate total latency from all providers
+  let totalLatencyMs = 0;
+  for (const p of Object.values(stats.providers)) {
+    totalLatencyMs += p.latencyMsTotal;
+  }
+
+  const averageLatencyMs = total > 0 ? totalLatencyMs / total : 0;
+
+  // Convert raw provider stats to structured format
+  const providerStats: Record<string, ProviderStats> = {};
+  for (const [name, p] of Object.entries(stats.providers)) {
+    providerStats[name] = {
+      requests: p.calls,
+      errors: p.failure,
+      rateLimited: stats.errorCodes.PROVIDER_RATE_LIMITED ?? 0,
+      totalLatencyMs: p.latencyMsTotal,
+      successRate: p.calls > 0 ? p.success / p.calls : 0,
+    };
+  }
+
+  return {
+    totalRequests: total,
+    successCount: totalSuccess,
+    errorCount: totalError,
+    rateLimitedCount: stats.errorCodes.PROVIDER_RATE_LIMITED ?? 0,
+    averageLatencyMs: Math.round(averageLatencyMs),
+    providerStats,
+  };
 }
+
+// ============================================================================
+// Legacy Stats API (for backward compatibility)
+// ============================================================================
 
 export function recordSearchCall(provider: string): number {
   stats.search.calls += 1;
-  const p = ensureProvider(provider);
+  const p = ensureRawProvider(provider);
   p.calls += 1;
   return Date.now();
 }
 
 export function recordSearchSuccess(provider: string, startTs: number): void {
   stats.search.success += 1;
-  const p = ensureProvider(provider);
+  const p = ensureRawProvider(provider);
   p.success += 1;
   p.latencyMsTotal += Math.max(0, Date.now() - startTs);
 }
 
 export function recordSearchFailure(provider: string, code: string, startTs: number): void {
   stats.search.failure += 1;
-  const p = ensureProvider(provider);
+  const p = ensureRawProvider(provider);
   p.failure += 1;
   p.latencyMsTotal += Math.max(0, Date.now() - startTs);
   stats.errorCodes[code] = (stats.errorCodes[code] ?? 0) + 1;
@@ -86,11 +199,93 @@ export function recordFetchFailure(code: string): void {
   stats.errorCodes[code] = (stats.errorCodes[code] ?? 0) + 1;
 }
 
-export function webDebugLog(message: string, details?: unknown): void {
-  if (!debugEnabled) return;
+// ============================================================================
+// Debug Logging (with levels)
+// ============================================================================
+
+function formatDebugMessage(level: DebugLevel, message: string, details?: unknown): string {
+  const timestamp = new Date().toISOString().replace("T", " ").replace("Z", "");
+  const prefix = `[web-tools] ${timestamp}`;
+
   if (details === undefined) {
-    console.log(`[web-tools] ${message}`);
-    return;
+    return `${prefix} ${message}`;
   }
-  console.log(`[web-tools] ${message}`, details);
+
+  if (level === "minimal") {
+    const detailStr =
+      typeof details === "object" && details !== null ? JSON.stringify(details) : String(details);
+    return `${prefix} ${message} ${detailStr}`;
+  }
+
+  // verbose
+  return `${prefix} ${message}\n${JSON.stringify(details, null, 2)}`;
+}
+
+export function webDebugLog(message: string, details?: unknown): void {
+  if (debugEnabled === false) return;
+
+  const formatted = formatDebugMessage(debugEnabled, message, details);
+  if (debugEnabled === "verbose") {
+    console.log(formatted);
+  } else {
+    console.log(formatted);
+  }
+}
+
+// ============================================================================
+// High-level Activity Recording (combines legacy + activity log)
+// ============================================================================
+
+export function recordSearchActivity(
+  provider: string,
+  status: "success" | "error" | "rate_limited",
+  startTs: number,
+  errorCode?: string
+): void {
+  const duration = Date.now() - startTs;
+
+  // Legacy stats
+  if (status === "success") {
+    recordSearchSuccess(provider, startTs);
+  } else {
+    recordSearchFailure(provider, errorCode ?? "UNKNOWN", startTs);
+  }
+
+  // Activity log
+  const code =
+    status === "rate_limited" ? "PROVIDER_RATE_LIMITED" : (errorCode ?? "WEB_SEARCH_FAILED");
+
+  addActivityEntry({
+    timestamp: startTs,
+    type: "search",
+    provider,
+    status,
+    duration,
+    error: status !== "success" ? code : undefined,
+  });
+}
+
+export function recordFetchActivity(
+  status: "success" | "error" | "rate_limited",
+  errorCode?: string
+): void {
+  const startTs = Date.now();
+
+  // Legacy stats
+  if (status === "success") {
+    recordFetchSuccess();
+  } else {
+    recordFetchFailure(errorCode ?? "FETCH_CONTENT_FAILED");
+  }
+
+  // Activity log
+  const code =
+    status === "rate_limited" ? "PROVIDER_RATE_LIMITED" : (errorCode ?? "FETCH_CONTENT_FAILED");
+
+  addActivityEntry({
+    timestamp: startTs,
+    type: "fetch",
+    status,
+    error: status !== "success" ? code : undefined,
+  });
 }

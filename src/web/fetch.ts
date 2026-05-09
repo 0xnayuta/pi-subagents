@@ -7,12 +7,7 @@ import {
   shouldTryJinaFallback,
   truncateContent,
 } from "./extract.ts";
-import {
-  recordFetchCall,
-  recordFetchFailure,
-  recordFetchSuccess,
-  webDebugLog,
-} from "./observability.ts";
+import { recordFetchActivity, webDebugLog } from "./observability.ts";
 import { getWebSecurityLimits, validatePublicHttpUrl } from "./security.ts";
 import { storeResult } from "./storage.ts";
 import type { ExtractedContent, FetchContentInput, WebToolError } from "./types.ts";
@@ -225,7 +220,6 @@ export async function fetchContent(
   config: ResolvedExtensionConfig,
   signal?: AbortSignal
 ): Promise<FetchContentResult> {
-  recordFetchCall();
   const urls = normalizeUrls(params);
   if (urls.length === 0) {
     return error("INVALID_INPUT", "fetch_content requires url or urls");
@@ -242,20 +236,27 @@ export async function fetchContent(
     const results = storedResults.map((result) =>
       truncateExtractedContent(result, limits.maxContentChars)
     );
-    recordFetchSuccess();
+    recordFetchActivity("success");
     webDebugLog("fetch_content success", { urls: urls.length, responseId });
     return { responseId, results };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     if (isAbortLikeError(err)) {
-      recordFetchFailure("SUBAGENT_TIMEOUT");
-      return error(
-        "SUBAGENT_TIMEOUT",
-        `fetch_content timed out or was aborted. Try fewer URLs or increase webTools.timeoutMs. (${message})`
-      );
+      recordFetchActivity("error", "CONTENT_FETCH_TIMEOUT");
+      return {
+        error: {
+          code: "CONTENT_FETCH_TIMEOUT",
+          message: `fetch_content timed out or was aborted. Try fewer URLs or increase webTools.timeoutMs. (${message})`,
+        },
+      };
     }
-    recordFetchFailure("FETCH_CONTENT_FAILED");
+    recordFetchActivity("error", "FETCH_CONTENT_FAILED");
     webDebugLog("fetch_content failed", { message, urls });
-    return error("FETCH_CONTENT_FAILED", message);
+    return {
+      error: {
+        code: "FETCH_CONTENT_FAILED",
+        message,
+      },
+    };
   }
 }

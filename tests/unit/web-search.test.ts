@@ -109,8 +109,8 @@ describe("web_search", () => {
     );
     assert.equal("error" in result, true);
     if ("error" in result) {
-      assert.equal(result.error.code, "WEB_SEARCH_AUTH_REQUIRED");
-      assert.match(result.error.message, /BRAVE_SEARCH_API_KEY/);
+      assert.equal(result.error.code, "PROVIDER_AUTH_FAILED");
+      assert.match(result.error.message, /authentication/i);
     }
   });
 
@@ -341,8 +341,8 @@ describe("web_search", () => {
 
     assert.equal("error" in result, true);
     if ("error" in result) {
-      assert.equal(result.error.code, "WEB_SEARCH_AUTH_REQUIRED");
-      assert.match(result.error.message, /credentials/i);
+      assert.equal(result.error.code, "PROVIDER_AUTH_FAILED");
+      assert.match(result.error.message, /authentication/i);
     }
   });
 
@@ -460,7 +460,7 @@ describe("web_search", () => {
     );
     assert.equal("error" in result, true);
     if ("error" in result) {
-      assert.equal(result.error.code, "WEB_SEARCH_RATE_LIMIT");
+      assert.equal(result.error.code, "PROVIDER_RATE_LIMITED");
       assert.match(result.error.message, /429/);
     }
   });
@@ -477,7 +477,7 @@ describe("web_search", () => {
     );
     assert.equal("error" in result, true);
     if ("error" in result) {
-      assert.equal(result.error.code, "SUBAGENT_TIMEOUT");
+      assert.equal(result.error.code, "WEB_SEARCH_TIMEOUT");
       assert.match(result.error.message, /fewer queries|timeoutMs/i);
     }
   });

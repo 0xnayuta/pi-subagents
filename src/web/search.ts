@@ -1,8 +1,9 @@
 import type { ResolvedExtensionConfig } from "../shared/types.ts";
 import { isAbortLikeError } from "./abort.ts";
+import { WEB_ERROR_CODES, mapHttpStatusToError, mapNetworkErrorToWebError } from "./errors.ts";
 import { truncateContent } from "./extract.ts";
 import { fetchUrlContent } from "./fetch.ts";
-import { recordSearchFailure, webDebugLog } from "./observability.ts";
+import { recordSearchActivity, webDebugLog } from "./observability.ts";
 import { selectSearchProvider } from "./providers/select-provider.ts";
 import { storeResult } from "./storage.ts";
 import type { QueryResultData, SearchResultItem, WebSearchInput, WebToolError } from "./types.ts";
@@ -116,77 +117,99 @@ function providerDisplayName(providerName: string): string {
   return providerName;
 }
 
-function classifySearchError(err: unknown, providerName: string): WebToolError {
+function classifySearchError(err: unknown, providerName: string, startTs: number): WebToolError {
   const displayName = providerDisplayName(providerName);
+
   if (isAbortLikeError(err)) {
-    recordSearchFailure(providerName, "SUBAGENT_TIMEOUT", Date.now());
-    return error(
-      "SUBAGENT_TIMEOUT",
-      "web_search timed out or was aborted. Try fewer queries, smaller numResults, or increase webTools.timeoutMs."
-    );
+    recordSearchActivity(providerName, "error", startTs, WEB_ERROR_CODES.WEB_SEARCH_TIMEOUT);
+    return {
+      error: {
+        code: WEB_ERROR_CODES.WEB_SEARCH_TIMEOUT,
+        message:
+          "web_search timed out or was aborted. Try fewer queries, smaller numResults, or increase webTools.timeoutMs.",
+      },
+    };
   }
 
   const message = err instanceof Error ? err.message : String(err);
 
-  if (message.includes("BRAVE_SEARCH_API_KEY")) {
-    recordSearchFailure(providerName, "WEB_SEARCH_AUTH_REQUIRED", Date.now());
-    return error(
-      "WEB_SEARCH_AUTH_REQUIRED",
-      "Brave provider requires BRAVE_SEARCH_API_KEY. Set it in environment and retry."
-    );
-  }
-
-  if (message.includes("is required for web_search provider")) {
-    recordSearchFailure(providerName, "WEB_SEARCH_AUTH_REQUIRED", Date.now());
-    return error(
-      "WEB_SEARCH_AUTH_REQUIRED",
-      `${displayName} requires credentials from configured environment variables. Check provider config and retry.`
-    );
-  }
-
-  const status =
-    typeof err === "object" &&
-    err !== null &&
-    "status" in err &&
-    typeof (err as { status?: unknown }).status === "number"
-      ? (err as { status: number }).status
+  const errStatus =
+    typeof err === "object" && err !== null && "status" in err
+      ? typeof (err as { status?: unknown }).status === "number"
+        ? (err as { status: number }).status
+        : undefined
       : undefined;
 
-  if (status === 401 || status === 403) {
-    recordSearchFailure(providerName, "WEB_SEARCH_AUTH_REQUIRED", Date.now());
-    return error(
-      "WEB_SEARCH_AUTH_REQUIRED",
-      `${displayName} authentication failed (HTTP ${status}). Check provider credentials and account permissions.`
+  // Check for auth errors
+  if (
+    message.includes("BRAVE_SEARCH_API_KEY") ||
+    message.includes("is required for web_search provider") ||
+    errStatus === 401 ||
+    errStatus === 403
+  ) {
+    const status = errStatus ?? 403;
+    const webError = mapHttpStatusToError(
+      status,
+      providerName,
+      `${displayName} authentication failed`
     );
+    recordSearchActivity(providerName, "error", startTs, webError.code);
+    return {
+      error: {
+        code: webError.code,
+        message: webError.message,
+      },
+    };
   }
 
-  if (status === 429) {
-    recordSearchFailure(providerName, "WEB_SEARCH_RATE_LIMIT", Date.now());
-    return error(
-      "WEB_SEARCH_RATE_LIMIT",
-      `${displayName} rate limit reached (HTTP 429). Retry later or reduce query frequency.`
+  if (errStatus === 429) {
+    recordSearchActivity(
+      providerName,
+      "rate_limited",
+      startTs,
+      WEB_ERROR_CODES.PROVIDER_RATE_LIMITED
     );
+    return {
+      error: {
+        code: WEB_ERROR_CODES.PROVIDER_RATE_LIMITED,
+        message: `${displayName} rate limit reached (HTTP 429). Retry later or reduce query frequency.`,
+      },
+    };
   }
 
-  if (typeof status === "number" && status >= 500) {
-    recordSearchFailure(providerName, "WEB_SEARCH_PROVIDER_ERROR", Date.now());
-    return error(
-      "WEB_SEARCH_PROVIDER_ERROR",
-      `${displayName} temporary provider error (HTTP ${status}). Retry later.`
-    );
+  if (typeof errStatus === "number" && errStatus >= 500) {
+    const webError = mapHttpStatusToError(errStatus, providerName);
+    recordSearchActivity(providerName, "error", startTs, webError.code);
+    return {
+      error: {
+        code: webError.code,
+        message: webError.message,
+      },
+    };
   }
 
   const lower = message.toLowerCase();
   if (lower.includes("fetch failed") || lower.includes("enotfound") || lower.includes("econn")) {
-    recordSearchFailure(providerName, "WEB_SEARCH_NETWORK_ERROR", Date.now());
-    return error(
-      "WEB_SEARCH_NETWORK_ERROR",
-      `Network error while calling ${displayName}: ${message}. Check network connectivity and DNS.`
+    const webError = mapNetworkErrorToWebError(
+      err instanceof Error ? err : new Error(message),
+      providerName
     );
+    recordSearchActivity(providerName, "error", startTs, webError.code);
+    return {
+      error: {
+        code: webError.code,
+        message: webError.message,
+      },
+    };
   }
 
-  recordSearchFailure(providerName, "WEB_SEARCH_FAILED", Date.now());
-  return error("WEB_SEARCH_FAILED", message);
+  recordSearchActivity(providerName, "error", startTs, WEB_ERROR_CODES.WEB_SEARCH_FAILED);
+  return {
+    error: {
+      code: WEB_ERROR_CODES.WEB_SEARCH_FAILED,
+      message,
+    },
+  };
 }
 
 export async function webSearch(
@@ -208,6 +231,7 @@ export async function webSearch(
   let lastError: WebToolError | undefined;
 
   for (const provider of selection.providers) {
+    const startTs = Date.now();
     try {
       let queryResults: QueryResultData[] = [];
       for (const query of queries) {
@@ -222,6 +246,7 @@ export async function webSearch(
       }
 
       const responseId = storeResult({ type: "search", queries: queryResults });
+      recordSearchActivity(provider.name, "success", startTs);
       webDebugLog("web_search success", {
         provider: provider.name,
         mode: selection.mode,
@@ -234,7 +259,7 @@ export async function webSearch(
         queries: limitSearchOutput(queryResults, config.webTools.maxContentChars),
       };
     } catch (err) {
-      const classified = classifySearchError(err, provider.name);
+      const classified = classifySearchError(err, provider.name, startTs);
       lastError = classified;
       webDebugLog("web_search failed", {
         provider: provider.name,

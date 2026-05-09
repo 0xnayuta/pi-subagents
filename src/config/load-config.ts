@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type {
+  DebugLevel,
   ExtensionConfig,
   ResolvedExtensionConfig,
   ResolvedWebToolsConfig,
@@ -125,6 +126,14 @@ function normalizeProviderPriority(value: unknown): ResolvedWebToolsConfig["prov
   return [...new Set(filtered)];
 }
 
+function normalizeDebugLevel(value: unknown): DebugLevel {
+  if (value === false || value === "minimal" || value === "verbose") {
+    return value;
+  }
+  if (value === true) return "minimal";
+  return DEFAULT_WEB_TOOLS_CONFIG.debug;
+}
+
 function normalizeWebToolsConfig(base: WebToolsConfig | undefined): ResolvedWebToolsConfig {
   return {
     enabled: booleanValue(base?.enabled, DEFAULT_WEB_TOOLS_CONFIG.enabled),
@@ -153,7 +162,7 @@ function normalizeWebToolsConfig(base: WebToolsConfig | undefined): ResolvedWebT
       base?.maxStoredContentChars,
       DEFAULT_WEB_TOOLS_CONFIG.maxStoredContentChars
     ),
-    debug: booleanValue(base?.debug, DEFAULT_WEB_TOOLS_CONFIG.debug),
+    debug: normalizeDebugLevel(base?.debug),
     openserp: {
       enabled: booleanValue(base?.openserp?.enabled, DEFAULT_WEB_TOOLS_CONFIG.openserp.enabled),
       baseUrl:

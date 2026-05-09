@@ -13,6 +13,8 @@ import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
 
 export type BuiltinSubagentName = "explorer" | "researcher" | "reviewer" | "implementer" | "tester";
 
+export type DebugLevel = false | "minimal" | "verbose";
+
 export interface MaxOutputConfig {
   bytes?: number;
   lines?: number;
@@ -171,7 +173,7 @@ export interface WebToolsConfig {
   jinaTimeoutMs?: number;
   maxStoredResults?: number;
   maxStoredContentChars?: number;
-  debug?: boolean;
+  debug?: DebugLevel;
   openserp?: OpenSerpProviderConfig;
   searxng?: SearxngProviderConfig;
   tavily?: ApiKeyProviderConfig;

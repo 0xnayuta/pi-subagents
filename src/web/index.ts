@@ -15,6 +15,29 @@ import {
 } from "./storage.ts";
 import type { FetchContentInput, GetSearchContentInput, WebSearchInput } from "./types.ts";
 
+// Re-export observability and error APIs for external access
+export {
+  getActivityLog,
+  getDebugLevel,
+  getWebToolStats,
+  recordFetchActivity,
+  recordSearchActivity,
+  type ActivityEntry,
+  type ProviderStats,
+  type WebToolStats,
+} from "./observability.ts";
+export {
+  createWebError,
+  formatWebError,
+  getErrorSummary,
+  mapHttpStatusToError,
+  mapNetworkErrorToWebError,
+  WEB_ERROR_CODES,
+  type RecoverySuggestion,
+  type WebError,
+  type WebErrorCode,
+} from "./errors.ts";
+
 function asToolResult(details: unknown): AgentToolResult<any> {
   return {
     content: [{ type: "text", text: JSON.stringify(details, null, 2) }],
