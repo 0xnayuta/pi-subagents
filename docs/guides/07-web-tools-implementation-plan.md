@@ -26,7 +26,7 @@ last_verified: 2026-05-08
 {
   "webTools": {
     "enabled": true,
-    "provider": "brave",
+    "provider": "ddgs",
     "timeoutMs": 10000,
     "maxResponseBytes": 1048576,
     "maxContentChars": 30000,

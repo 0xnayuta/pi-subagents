@@ -204,40 +204,50 @@ export async function webSearch(
     return selection.error;
   }
 
-  const provider = selection.provider;
   const numResults = normalizeNumResults(params, config);
+  let lastError: WebToolError | undefined;
 
-  try {
-    let queryResults: QueryResultData[] = [];
-    for (const query of queries) {
-      queryResults.push({
-        query,
-        results: await provider.search({ query, numResults, signal }, config),
+  for (const provider of selection.providers) {
+    try {
+      let queryResults: QueryResultData[] = [];
+      for (const query of queries) {
+        queryResults.push({
+          query,
+          results: await provider.search({ query, numResults, signal }, config),
+        });
+      }
+
+      if (params.includeContent === true) {
+        queryResults = await attachContent(queryResults, config, signal);
+      }
+
+      const responseId = storeResult({ type: "search", queries: queryResults });
+      webDebugLog("web_search success", {
+        provider: provider.name,
+        mode: selection.mode,
+        queries: queryResults.length,
+        responseId,
+        includeContent: params.includeContent === true,
       });
-    }
+      return {
+        responseId,
+        queries: limitSearchOutput(queryResults, config.webTools.maxContentChars),
+      };
+    } catch (err) {
+      const classified = classifySearchError(err, provider.name);
+      lastError = classified;
+      webDebugLog("web_search failed", {
+        provider: provider.name,
+        mode: selection.mode,
+        code: classified.error.code,
+        message: classified.error.message,
+      });
 
-    if (params.includeContent === true) {
-      queryResults = await attachContent(queryResults, config, signal);
+      if (selection.mode === "explicit") {
+        return classified;
+      }
     }
-
-    const responseId = storeResult({ type: "search", queries: queryResults });
-    webDebugLog("web_search success", {
-      provider: provider.name,
-      queries: queryResults.length,
-      responseId,
-      includeContent: params.includeContent === true,
-    });
-    return {
-      responseId,
-      queries: limitSearchOutput(queryResults, config.webTools.maxContentChars),
-    };
-  } catch (err) {
-    const classified = classifySearchError(err, provider.name);
-    webDebugLog("web_search failed", {
-      provider: provider.name,
-      code: classified.error.code,
-      message: classified.error.message,
-    });
-    return classified;
   }
+
+  return lastError ?? error("WEB_SEARCH_FAILED", "No web_search provider completed successfully.");
 }

@@ -6,6 +6,7 @@ import type { SearchResultItem } from "../types.ts";
 import type { ProviderSearchParams, SearchProviderAdapter } from "./types.ts";
 
 const DDGS_LITE_ENDPOINT = "https://lite.duckduckgo.com/lite/";
+const DDGS_MAX_RESULTS = 5;
 
 interface SearchHttpError extends Error {
   status: number;
@@ -90,7 +91,7 @@ function parseLiteResults(html: string, count: number): SearchResultItem[] {
     results.push({
       title,
       url,
-      source: "duckduckgo-lite",
+      source: "fallback",
     });
 
     if (results.length >= count) break;
@@ -124,7 +125,7 @@ async function search(
     }
 
     const html = await response.text();
-    const results = parseLiteResults(html, params.numResults);
+    const results = parseLiteResults(html, Math.min(params.numResults, DDGS_MAX_RESULTS));
     recordSearchSuccess("ddgs", searchStart);
     return results;
   } catch (error) {

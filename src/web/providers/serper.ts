@@ -104,7 +104,6 @@ async function search(
 }
 
 function isAvailable(config: ResolvedExtensionConfig): boolean {
-  if (!config.webTools.serper.enabled) return false;
   try {
     const baseUrl = new URL(config.webTools.serper.baseUrl);
     if (baseUrl.protocol !== "http:" && baseUrl.protocol !== "https:") return false;

@@ -138,8 +138,9 @@ const PROVIDERS: Record<string, SearchProviderAdapter> = {
    - 找到对应 adapter
    - `isAvailable=false` 时返回结构化错误（不降级）
 2. 若 `provider === auto`：
-   - 按 `providerPriority` 顺序取第一个 available adapter
-   - 若全部 unavailable，返回 `WEB_SEARCH_FAILED`
+   - 按 tier 选择：已配置 key 的商业 provider（tavily/serper/brave） -> 可用的 OpenSERP/SearXNG -> DDGS 兜底
+   - `providerPriority` 用于控制同 tier 内的顺序/候选集合
+   - 若某个 auto provider 调用失败，继续尝试后续 provider；若都不可用，返回最后一次分类错误或 `WEB_SEARCH_FAILED`
 
 ---
 
@@ -154,7 +155,7 @@ const PROVIDERS: Record<string, SearchProviderAdapter> = {
   "webTools": {
     "enabled": true,
     "provider": "auto",
-    "providerPriority": ["brave", "tavily", "serper", "openserp", "searxng", "ddgs"],
+    "providerPriority": ["tavily", "serper", "brave", "openserp", "searxng", "ddgs"],
 
     "timeoutMs": 10000,
     "maxResults": 5,
@@ -171,7 +172,7 @@ const PROVIDERS: Record<string, SearchProviderAdapter> = {
 
     "searxng": {
       "enabled": false,
-      "baseUrl": "http://127.0.0.1:8080",
+      "baseUrl": "",
       "defaultEngine": "google"
     },
 

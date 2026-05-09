@@ -11,8 +11,8 @@ import type {
 
 export const DEFAULT_WEB_TOOLS_CONFIG: ResolvedWebToolsConfig = {
   enabled: true,
-  provider: "brave",
-  providerPriority: ["brave", "tavily", "serper", "openserp", "searxng", "ddgs"],
+  provider: "ddgs",
+  providerPriority: ["tavily", "serper", "brave", "openserp", "searxng", "ddgs"],
   timeoutMs: 10000,
   maxResponseBytes: 1048576,
   maxContentChars: 30000,
@@ -29,7 +29,7 @@ export const DEFAULT_WEB_TOOLS_CONFIG: ResolvedWebToolsConfig = {
   },
   searxng: {
     enabled: false,
-    baseUrl: "http://127.0.0.1:8080",
+    baseUrl: "",
     defaultEngine: "google",
   },
   tavily: {
@@ -87,9 +87,9 @@ function booleanValue(value: unknown, fallback: boolean): boolean {
 }
 
 const PROVIDER_NAMES: Exclude<WebSearchProviderName, "auto">[] = [
-  "brave",
   "tavily",
   "serper",
+  "brave",
   "openserp",
   "searxng",
   "ddgs",
@@ -168,7 +168,7 @@ function normalizeWebToolsConfig(base: WebToolsConfig | undefined): ResolvedWebT
     searxng: {
       enabled: booleanValue(base?.searxng?.enabled, DEFAULT_WEB_TOOLS_CONFIG.searxng.enabled),
       baseUrl:
-        typeof base?.searxng?.baseUrl === "string" && base.searxng.baseUrl.trim().length > 0
+        typeof base?.searxng?.baseUrl === "string"
           ? base.searxng.baseUrl.trim()
           : DEFAULT_WEB_TOOLS_CONFIG.searxng.baseUrl,
       defaultEngine:

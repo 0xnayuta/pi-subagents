@@ -126,8 +126,8 @@ P2 增强点：
 {
   "webTools": {
     "enabled": true,
-    "provider": "brave",
-    "providerPriority": ["brave", "tavily", "serper", "openserp", "searxng", "ddgs"],
+    "provider": "ddgs",
+    "providerPriority": ["tavily", "serper", "brave", "openserp", "searxng", "ddgs"],
     "timeoutMs": 10000,
     "maxResponseBytes": 1048576,
     "maxContentChars": 30000,
@@ -144,7 +144,7 @@ P2 增强点：
     },
     "searxng": {
       "enabled": false,
-      "baseUrl": "http://127.0.0.1:8080",
+      "baseUrl": "",
       "defaultEngine": "google"
     },
     "tavily": {

@@ -88,7 +88,7 @@ async function search(
         title: item.title ?? item.url ?? "Untitled",
         url: item.url ?? "",
         snippet: item.description,
-        source: item.profile?.name ?? "brave",
+        source: "brave",
       }));
   } catch (error) {
     if (isAbortLikeError(error)) {

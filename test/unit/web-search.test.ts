@@ -40,6 +40,9 @@ describe("web_search", () => {
   beforeEach(() => {
     clearResults();
     process.env.BRAVE_SEARCH_API_KEY = "test-key";
+    delete process.env.OPENSERP_API_KEY;
+    delete process.env.TAVILY_API_KEY;
+    delete process.env.SERPER_API_KEY;
   });
 
   afterEach(() => {
@@ -140,13 +143,32 @@ describe("web_search", () => {
       assert.match(calls[0], /lite\.duckduckgo\.com\/lite\//);
       assert.equal(result.queries[0].results.length, 2);
       assert.equal(result.queries[0].results[0].url, "https://example.com/a");
-      assert.equal(result.queries[0].results[0].source, "duckduckgo-lite");
+      assert.equal(result.queries[0].results[0].source, "fallback");
     }
   });
 
-  it("prefers brave in auto mode when BRAVE_SEARCH_API_KEY is present", async () => {
+  it("prefers keyed commercial providers in auto mode", async () => {
+    process.env.TAVILY_API_KEY = "tavily-test-key";
+
     const calls: string[] = [];
-    mockBraveFetch(calls);
+    globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+      calls.push(String(input));
+      assert.equal(init?.method, "POST");
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            results: [
+              {
+                title: "Tavily Result",
+                url: "https://example.com/tavily-auto",
+                content: "Tavily Snippet",
+              },
+            ],
+          }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        )
+      );
+    }) as typeof fetch;
 
     const result = await webSearch(
       { query: "typescript", numResults: 1 },
@@ -156,7 +178,8 @@ describe("web_search", () => {
     assert.equal("responseId" in result, true);
     if ("responseId" in result) {
       assert.equal(calls.length, 1);
-      assert.match(calls[0], /api\.search\.brave\.com/);
+      assert.match(calls[0], /api\.tavily\.com\/search/);
+      assert.equal(result.queries[0].results[0].source, "tavily");
     }
   });
 
@@ -219,7 +242,12 @@ describe("web_search", () => {
 
     const result = await webSearch(
       { query: "typescript", numResults: 1 },
-      mergeConfig({ webTools: { provider: "searxng", searxng: { enabled: true } } })
+      mergeConfig({
+        webTools: {
+          provider: "searxng",
+          searxng: { enabled: true, baseUrl: "http://127.0.0.1:8080" },
+        },
+      })
     );
 
     assert.equal("responseId" in result, true);
@@ -376,7 +404,7 @@ describe("web_search", () => {
 
     const result = await webSearch(
       { query: "typescript", queries: ["typescript", "node"], numResults: 2 },
-      mergeConfig({})
+      mergeConfig({ webTools: { provider: "brave" } })
     );
 
     assert.equal("responseId" in result, true);
@@ -384,7 +412,7 @@ describe("web_search", () => {
       assert.equal(result.queries.length, 2);
       assert.equal(result.queries[0].query, "typescript");
       assert.equal(result.queries[0].results.length, 2);
-      assert.equal(result.queries[0].results[0].source, "Example");
+      assert.equal(result.queries[0].results[0].source, "brave");
       assert.equal(calls.length, 2);
 
       const stored = getSearchContent({ responseId: result.responseId, query: "node" }, 30_000);
@@ -411,7 +439,7 @@ describe("web_search", () => {
 
     const result = await webSearch(
       { query: "typescript", numResults: 1, includeContent: true },
-      mergeConfig({ webTools: { maxContentChars: 7 } })
+      mergeConfig({ webTools: { provider: "brave", maxContentChars: 7 } })
     );
 
     assert.equal("responseId" in result, true);
@@ -426,7 +454,10 @@ describe("web_search", () => {
     globalThis.fetch = (() =>
       Promise.resolve(new Response("Too Many Requests", { status: 429, statusText: "Too Many Requests" }))) as typeof fetch;
 
-    const result = await webSearch({ query: "typescript" }, mergeConfig({}));
+    const result = await webSearch(
+      { query: "typescript" },
+      mergeConfig({ webTools: { provider: "brave" } })
+    );
     assert.equal("error" in result, true);
     if ("error" in result) {
       assert.equal(result.error.code, "WEB_SEARCH_RATE_LIMIT");
@@ -440,7 +471,10 @@ describe("web_search", () => {
         setTimeout(() => reject(new DOMException("The operation was aborted", "AbortError")), 5);
       })) as typeof fetch;
 
-    const result = await webSearch({ query: "typescript" }, mergeConfig({ webTools: { timeoutMs: 1 } }));
+    const result = await webSearch(
+      { query: "typescript" },
+      mergeConfig({ webTools: { provider: "brave", timeoutMs: 1 } })
+    );
     assert.equal("error" in result, true);
     if ("error" in result) {
       assert.equal(result.error.code, "SUBAGENT_TIMEOUT");
@@ -483,7 +517,7 @@ describe("web_search", () => {
 
     const result = await webSearch(
       { query: "typescript", numResults: 5, includeContent: true },
-      mergeConfig({})
+      mergeConfig({ webTools: { provider: "brave" } })
     );
 
     assert.equal("responseId" in result, true);

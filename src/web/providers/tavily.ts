@@ -101,7 +101,6 @@ async function search(
 }
 
 function isAvailable(config: ResolvedExtensionConfig): boolean {
-  if (!config.webTools.tavily.enabled) return false;
   try {
     const baseUrl = new URL(config.webTools.tavily.baseUrl);
     if (baseUrl.protocol !== "http:" && baseUrl.protocol !== "https:") return false;
