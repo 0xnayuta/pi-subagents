@@ -8,249 +8,85 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, describe, it } from "node:test";
-import { discoverAgents, type AgentConfig } from "../../../src/agents/agents.ts";
+import { discoverAgents } from "../../../src/agents/agents.ts";
 
 const tempDirs: string[] = [];
 
 afterEach(() => {
-	while (tempDirs.length > 0) {
-		const dir = tempDirs.pop();
-		if (!dir) continue;
+	for (const dir of tempDirs.splice(0)) {
 		fs.rmSync(dir, { recursive: true, force: true });
 	}
 });
 
-describe("MVP Simple Frontmatter Parsing", () => {
-	it("parses name from frontmatter", () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-mvp-fm-name-"));
-		tempDirs.push(dir);
-		const agentsDir = path.join(dir, ".pi", "agents");
-		fs.mkdirSync(agentsDir, { recursive: true });
-		fs.writeFileSync(
-			path.join(agentsDir, "custom.md"),
-			`---
-name: custom-reviewer
-description: Project-specific reviewer
-readonly: true
-tools: read, grep, find, ls
----
+function tempAgent(name: string, body: string): string {
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), `pi-mvp-${name}-`));
+	tempDirs.push(dir);
+	const agentsDir = path.join(dir, ".pi", "agents");
+	fs.mkdirSync(agentsDir, { recursive: true });
+	fs.writeFileSync(path.join(agentsDir, `${name}.md`), `---\n${body}\n---\n\nAgent body.`, "utf-8");
+	return dir;
+}
 
-You are a custom reviewer agent.
-`,
-			"utf-8",
-		);
+describe("MVP Simple Frontmatter Parsing", () => {
+	it("parses name, description, readonly, tools, and systemPrompt", () => {
+		const dir = tempAgent("custom", [
+			"name: custom-reviewer",
+			"description: Project-specific reviewer",
+			"readonly: true",
+			"tools: read, grep, find, ls",
+		].join("\n"));
 
 		const result = discoverAgents(dir, "project");
 		const agent = result.agents.find((a) => a.name === "custom-reviewer");
-		assert.ok(agent, "custom-reviewer should be discovered");
+		assert.ok(agent);
 		assert.equal(agent.description, "Project-specific reviewer");
-	});
-
-	it("parses description from frontmatter", () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-mvp-fm-desc-"));
-		tempDirs.push(dir);
-		const agentsDir = path.join(dir, ".pi", "agents");
-		fs.mkdirSync(agentsDir, { recursive: true });
-		fs.writeFileSync(
-			path.join(agentsDir, "reviewer.md"),
-			`---
-name: reviewer
-description: Reviews code for quality
-readonly: true
-tools: read, grep
----
-
-You are a code reviewer.
-`,
-			"utf-8",
-		);
-
-		const result = discoverAgents(dir, "project");
-		const agent = result.agents.find((a) => a.name === "reviewer");
-		assert.ok(agent, "reviewer should be discovered");
-		assert.equal(agent.description, "Reviews code for quality");
-	});
-
-	it("parses readonly boolean from frontmatter", () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-mvp-fm-readonly-"));
-		tempDirs.push(dir);
-		const agentsDir = path.join(dir, ".pi", "agents");
-		fs.mkdirSync(agentsDir, { recursive: true });
-		fs.writeFileSync(
-			path.join(agentsDir, "worker.md"),
-			`---
-name: worker
-description: Worker agent
-readonly: true
-tools: read, grep, find, ls
----
-
-Do work.
-`,
-			"utf-8",
-		);
-
-		const result = discoverAgents(dir, "project");
-		const agent = result.agents.find((a) => a.name === "worker");
-		assert.ok(agent, "worker should be discovered");
 		assert.equal(agent.readonly, true);
-	});
-
-	it("parses comma-separated tools from frontmatter", () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-mvp-fm-tools-"));
-		tempDirs.push(dir);
-		const agentsDir = path.join(dir, ".pi", "agents");
-		fs.mkdirSync(agentsDir, { recursive: true });
-		fs.writeFileSync(
-			path.join(agentsDir, "scout.md"),
-			`---
-name: scout
-description: Scout agent
-readonly: true
-tools: read, grep, find, ls
----
-
-Scout the codebase.
-`,
-			"utf-8",
-		);
-
-		const result = discoverAgents(dir, "project");
-		const agent = result.agents.find((a) => a.name === "scout");
-		assert.ok(agent, "scout should be discovered");
-		assert.ok(agent.tools, "scout should have tools");
-		assert.ok(agent.tools?.includes("read"), "should have read");
-		assert.ok(agent.tools?.includes("grep"), "should have grep");
-		assert.ok(agent.tools?.includes("find"), "should have find");
-		assert.ok(agent.tools?.includes("ls"), "should have ls");
-	});
-
-	it("parses systemPrompt from body after frontmatter", () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-mvp-fm-body-"));
-		tempDirs.push(dir);
-		const agentsDir = path.join(dir, ".pi", "agents");
-		fs.mkdirSync(agentsDir, { recursive: true });
-		fs.writeFileSync(
-			path.join(agentsDir, "explorer.md"),
-			`---
-name: explorer
-description: Explore files
-readonly: true
-tools: read, grep, find, ls
----
-
-You are an explorer agent. Navigate the codebase and report findings.
-`,
-			"utf-8",
-		);
-
-		const result = discoverAgents(dir, "project");
-		const agent = result.agents.find((a) => a.name === "explorer");
-		assert.ok(agent, "explorer should be discovered");
-		assert.ok(agent.systemPrompt, "explorer should have systemPrompt");
-		assert.ok(agent.systemPrompt.includes("explorer agent"));
+		assert.ok(agent.tools?.includes("read"));
+		assert.ok(agent.tools?.includes("grep"));
+		assert.ok(agent.tools?.includes("find"));
+		assert.ok(agent.tools?.includes("ls"));
+		assert.ok(agent.systemPrompt?.includes("Agent body"));
+		assert.equal(agent.source, "project");
 	});
 
 	it("sets source to 'project' for project agents", () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-mvp-fm-source-"));
-		tempDirs.push(dir);
-		const agentsDir = path.join(dir, ".pi", "agents");
-		fs.mkdirSync(agentsDir, { recursive: true });
-		fs.writeFileSync(
-			path.join(agentsDir, "tester.md"),
-			`---
-name: tester
-description: Test agent
-readonly: true
-tools: read, grep
----
-
-You are a tester agent.
-`,
-			"utf-8",
-		);
-
+		const dir = tempAgent("proj-agent", "name: proj-agent\ndescription: Test\nreadonly: true\ntools: read");
 		const result = discoverAgents(dir, "project");
-		const agent = result.agents.find((a) => a.name === "tester");
-		assert.ok(agent, "tester should be discovered");
-		assert.equal(agent.source, "project");
+		assert.equal(result.agents[0].source, "project");
 	});
 });
 
 describe("MVP Removed Frontmatter Features", () => {
-	it("does not parse 'package' frontmatter (packaged agents removed)", () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-mvp-no-package-"));
-		tempDirs.push(dir);
-		const agentsDir = path.join(dir, ".pi", "agents");
-		fs.mkdirSync(agentsDir, { recursive: true });
-		fs.writeFileSync(
-			path.join(agentsDir, "scout.md"),
-			`---
-name: scout
-package: code-analysis
-description: Fast recon
----
-
-Inspect code.
-`,
-			"utf-8",
-		);
-
-		// Should NOT create "code-analysis.scout" runtime name
-		// MVP does not support packaged agents
+	it("does not parse 'package' frontmatter", () => {
+		const dir = tempAgent("pkg-agent", [
+			"name: pkg-agent",
+			"package: code-analysis",
+			"description: Fast recon",
+		].join("\n"));
 		const result = discoverAgents(dir, "project");
-		const packaged = result.agents.find((a) => a.name === "code-analysis.scout");
-		assert.equal(packaged, undefined, "packaged agents not supported in MVP");
+		assert.equal(result.agents.find((a) => a.name === "code-analysis.pkg-agent"), undefined);
 	});
 
-	it("does not parse 'inheritSkills' frontmatter (skills injection removed)", () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-mvp-no-inheritSkills-"));
-		tempDirs.push(dir);
-		const agentsDir = path.join(dir, ".pi", "agents");
-		fs.mkdirSync(agentsDir, { recursive: true });
-		fs.writeFileSync(
-			path.join(agentsDir, "worker.md"),
-			`---
-name: worker
-description: Worker
-inheritSkills: true
----
-
-Do work.
-`,
-			"utf-8",
-		);
-
+	it("does not parse 'inheritSkills' frontmatter", () => {
+		const dir = tempAgent("skill-agent", [
+			"name: skill-agent",
+			"description: Worker",
+			"inheritSkills: true",
+		].join("\n"));
 		const result = discoverAgents(dir, "project");
-		const agent = result.agents.find((a) => a.name === "worker");
-		assert.ok(agent, "worker should be discovered");
-		// MVP: inheritSkills not supported, agent config should not have this field
+		const agent = result.agents.find((a) => a.name === "skill-agent");
+		assert.ok(agent);
 		assert.equal((agent as any).inheritSkills, undefined);
 	});
 
-	it("does not parse 'defaultContext' frontmatter (fork context removed)", () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-mvp-no-defaultContext-"));
-		tempDirs.push(dir);
-		const agentsDir = path.join(dir, ".pi", "agents");
-		fs.mkdirSync(agentsDir, { recursive: true });
-		fs.writeFileSync(
-			path.join(agentsDir, "delegate.md"),
-			`---
-name: delegate
-description: Delegate
-defaultContext: fork
----
-
-Delegate tasks.
-`,
-			"utf-8",
-		);
-
+	it("does not parse 'defaultContext' frontmatter", () => {
+		const dir = tempAgent("ctx-agent", [
+			"name: ctx-agent",
+			"description: Delegate",
+			"defaultContext: fork",
+		].join("\n"));
 		const result = discoverAgents(dir, "project");
-		const agent = result.agents.find((a) => a.name === "delegate");
-		assert.ok(agent, "delegate should be discovered");
-		// MVP: defaultContext not supported, should default to fresh
-		assert.equal(agent.defaultContext, undefined);
+		assert.equal(result.agents.find((a) => a.name === "ctx-agent")?.defaultContext, undefined);
 	});
 });
 
@@ -266,16 +102,8 @@ describe("MVP User Agents", () => {
 		fs.mkdirSync(userAgentsDir, { recursive: true });
 		fs.writeFileSync(
 			path.join(userAgentsDir, "my-agent.md"),
-			`---
-name: my-agent
-description: My custom agent
-readonly: true
-tools: read, grep
----
-
-My agent prompt.
-`,
-			"utf-8",
+			`---\nname: my-agent\ndescription: My custom agent\nreadonly: true\ntools: read, grep\n---\n\nMy agent prompt.`,
+			"utf-8"
 		);
 		try {
 			process.env.HOME = homeDir;
@@ -290,10 +118,5 @@ My agent prompt.
 			if (previousUserProfile === undefined) delete process.env.USERPROFILE;
 			else process.env.USERPROFILE = previousUserProfile;
 		}
-	});
-
-	it("user agents take precedence over project agents on name collision", () => {
-		// When user and project have agents with the same name,
-		// the MVP should define clear precedence rules
 	});
 });
