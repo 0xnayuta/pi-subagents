@@ -1,6 +1,6 @@
 import type { ResolvedExtensionConfig } from "../../shared/types.ts";
 import { withTimeoutSignal } from "../abort.ts";
-import { recordSearchCall, recordSearchFailure, recordSearchSuccess } from "../observability.ts";
+import { pooledFetch } from "../http-pool.ts";
 import type { SearchResultItem } from "../types.ts";
 import type { ProviderSearchParams, SearchProviderAdapter } from "./types.ts";
 
@@ -63,10 +63,9 @@ async function search(
   config: ResolvedExtensionConfig
 ): Promise<SearchResultItem[]> {
   const endpoint = buildSearchUrl(config, params.query, params.numResults);
-  const searchStart = recordSearchCall("searxng");
 
   try {
-    const response = await fetch(endpoint, {
+    const response = await pooledFetch(endpoint, {
       method: "GET",
       signal: withTimeoutSignal(config.webTools.timeoutMs, params.signal),
       headers: {
@@ -76,12 +75,10 @@ async function search(
 
     if (!response.ok) {
       const responseText = await response.text().catch(() => "");
-      recordSearchFailure("searxng", `HTTP_${response.status}`, searchStart);
       throw createSearchHttpError(response.status, response.statusText, responseText.slice(0, 300));
     }
 
     const data = (await response.json()) as SearxngResponse;
-    recordSearchSuccess("searxng", searchStart);
     return normalizeResults(data.results ?? [], params.numResults);
   } catch (error) {
     if (
@@ -92,7 +89,6 @@ async function search(
     ) {
       throw error;
     }
-    recordSearchFailure("searxng", "WEB_SEARCH_NETWORK_ERROR", searchStart);
     throw error;
   }
 }

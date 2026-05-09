@@ -231,17 +231,24 @@ describe("observability - debug logging", () => {
     assert.equal(consoleLogSpy.length, 0);
   });
 
-  it("outputs minimal debug logs when minimal level is enabled", () => {
+  it("outputs minimal debug logs for warnings/errors when minimal level is enabled", () => {
     configureWebObservability("minimal");
     webDebugLog("search success", {
       provider: "ddgs",
       mode: "auto",
       responseId: "test-123",
     });
+    assert.equal(consoleLogSpy.length, 0);
+
+    webDebugLog("search failed", {
+      provider: "ddgs",
+      mode: "auto",
+      code: "WEB_SEARCH_FAILED",
+    });
 
     assert.ok(consoleLogSpy.length > 0);
     assert.ok(consoleLogSpy[0].includes("[web-tools]"));
-    assert.ok(consoleLogSpy[0].includes("search success"));
+    assert.ok(consoleLogSpy[0].includes("search failed"));
     // Minimal mode should have JSON on same line
     assert.ok(consoleLogSpy[0].includes('"provider"'));
   });
@@ -260,22 +267,22 @@ describe("observability - debug logging", () => {
 
   it("includes timestamp in debug output", () => {
     configureWebObservability("minimal");
-    webDebugLog("test");
+    webDebugLog("test warning");
 
     assert.ok(consoleLogSpy[0].match(/\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/));
   });
 
   it("handles undefined details gracefully", () => {
     configureWebObservability("minimal");
-    webDebugLog("no details");
+    webDebugLog("warning no details");
 
     assert.ok(consoleLogSpy.length > 0);
-    assert.ok(consoleLogSpy[0].includes("no details"));
+    assert.ok(consoleLogSpy[0].includes("warning no details"));
   });
 
   it("handles non-object details", () => {
     configureWebObservability("minimal");
-    webDebugLog("simple", "just a string");
+    webDebugLog("simple error", "just a string");
 
     assert.ok(consoleLogSpy.length > 0);
     assert.ok(consoleLogSpy[0].includes("just a string"));
@@ -288,7 +295,7 @@ describe("observability - debug logging", () => {
 
     // Enable
     configureWebObservability("minimal");
-    webDebugLog("enabled", { test: true });
+    webDebugLog("enabled warning", { test: true });
     assert.ok(consoleLogSpy.length > 0);
     const countWhenEnabled = consoleLogSpy.length;
 

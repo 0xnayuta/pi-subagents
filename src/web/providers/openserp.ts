@@ -1,6 +1,6 @@
 import type { ResolvedExtensionConfig } from "../../shared/types.ts";
 import { withTimeoutSignal } from "../abort.ts";
-import { recordSearchCall, recordSearchFailure, recordSearchSuccess } from "../observability.ts";
+import { pooledFetch } from "../http-pool.ts";
 import type { SearchResultItem } from "../types.ts";
 import type { ProviderSearchParams, SearchProviderAdapter } from "./types.ts";
 
@@ -71,10 +71,8 @@ async function search(
   endpoint.searchParams.set("q", params.query);
   endpoint.searchParams.set("num", String(params.numResults));
 
-  const searchStart = recordSearchCall("openserp");
-
   try {
-    const response = await fetch(endpoint, {
+    const response = await pooledFetch(endpoint, {
       method: "GET",
       signal: withTimeoutSignal(config.webTools.timeoutMs, params.signal),
       headers: {
@@ -86,12 +84,10 @@ async function search(
 
     if (!response.ok) {
       const responseText = await response.text().catch(() => "");
-      recordSearchFailure("openserp", `HTTP_${response.status}`, searchStart);
       throw createSearchHttpError(response.status, response.statusText, responseText.slice(0, 300));
     }
 
     const data = (await response.json()) as OpenSerpResponse;
-    recordSearchSuccess("openserp", searchStart);
 
     const items = data.organic_results ?? data.results ?? [];
     return normalizeResults(items, params.numResults);
@@ -104,7 +100,6 @@ async function search(
     ) {
       throw error;
     }
-    recordSearchFailure("openserp", "WEB_SEARCH_NETWORK_ERROR", searchStart);
     throw error;
   }
 }

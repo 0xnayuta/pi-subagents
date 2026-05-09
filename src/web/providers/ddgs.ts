@@ -1,7 +1,7 @@
 import type { ResolvedExtensionConfig } from "../../shared/types.ts";
 import { withTimeoutSignal } from "../abort.ts";
 import { normalizeWhitespace } from "../extract.ts";
-import { recordSearchCall, recordSearchFailure, recordSearchSuccess } from "../observability.ts";
+import { pooledFetch } from "../http-pool.ts";
 import type { SearchResultItem } from "../types.ts";
 import type { ProviderSearchParams, SearchProviderAdapter } from "./types.ts";
 
@@ -104,13 +104,11 @@ async function search(
   params: ProviderSearchParams,
   config: ResolvedExtensionConfig
 ): Promise<SearchResultItem[]> {
-  const searchStart = recordSearchCall("ddgs");
-
   try {
     const url = new URL(DDGS_LITE_ENDPOINT);
     url.searchParams.set("q", params.query);
 
-    const response = await fetch(url, {
+    const response = await pooledFetch(url, {
       method: "GET",
       signal: withTimeoutSignal(config.webTools.timeoutMs, params.signal),
       headers: {
@@ -120,13 +118,11 @@ async function search(
 
     if (!response.ok) {
       const responseText = await response.text().catch(() => "");
-      recordSearchFailure("ddgs", `HTTP_${response.status}`, searchStart);
       throw createSearchHttpError(response.status, response.statusText, responseText.slice(0, 300));
     }
 
     const html = await response.text();
     const results = parseLiteResults(html, Math.min(params.numResults, DDGS_MAX_RESULTS));
-    recordSearchSuccess("ddgs", searchStart);
     return results;
   } catch (error) {
     if (
@@ -137,7 +133,6 @@ async function search(
     ) {
       throw error;
     }
-    recordSearchFailure("ddgs", "WEB_SEARCH_NETWORK_ERROR", searchStart);
     throw error;
   }
 }

@@ -1,5 +1,6 @@
 import type { ResolvedExtensionConfig } from "../shared/types.ts";
 import { isAbortLikeError, withTimeoutSignal } from "./abort.ts";
+import { withThrottle } from "./concurrency.ts";
 import {
   extractHeadingTitle,
   extractHtml,
@@ -7,6 +8,7 @@ import {
   shouldTryJinaFallback,
   truncateContent,
 } from "./extract.ts";
+import { pooledFetch } from "./http-pool.ts";
 import { recordFetchActivity, webDebugLog } from "./observability.ts";
 import { getWebSecurityLimits, validatePublicHttpUrl } from "./security.ts";
 import { storeResult } from "./storage.ts";
@@ -98,7 +100,7 @@ async function fetchWithRedirects(
   let currentUrl = initialUrl;
 
   for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
-    const response = await fetch(currentUrl, {
+    const response = await pooledFetch(currentUrl.href, {
       method: "GET",
       redirect: "manual",
       signal: withTimeoutSignal(timeoutMs, signal),
@@ -139,7 +141,7 @@ async function fetchFromJinaReader(
   timeoutMs: number,
   signal?: AbortSignal
 ): Promise<{ title?: string; content: string } | null> {
-  const response = await fetch(`${JINA_READER_BASE}${url}`, {
+  const response = await pooledFetch(`${JINA_READER_BASE}${url}`, {
     method: "GET",
     signal: withTimeoutSignal(timeoutMs, signal),
     headers: {
@@ -228,7 +230,7 @@ export async function fetchContent(
   try {
     const storedResults: ExtractedContent[] = [];
     for (const url of urls) {
-      storedResults.push(await fetchUrlContent(url, config, signal));
+      storedResults.push(await withThrottle(() => fetchUrlContent(url, config, signal)));
     }
 
     const responseId = storeResult({ type: "fetch", urls: storedResults });

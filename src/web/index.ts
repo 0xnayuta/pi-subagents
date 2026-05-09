@@ -5,7 +5,11 @@ import { initializeSearchCache } from "./cache.ts";
 import { initializeRequestThrottler } from "./concurrency.ts";
 import { fetchContent } from "./fetch.ts";
 import { initializeConnectionPool } from "./http-pool.ts";
-import { configureWebObservability, resetWebToolStats } from "./observability.ts";
+import {
+  configureWebObservability,
+  recordGetContentActivity,
+  resetWebToolStats,
+} from "./observability.ts";
 import {
   renderFetchContentCall,
   renderFetchContentResult,
@@ -73,6 +77,7 @@ export {
   getWebToolStats,
   type ProviderStats,
   recordFetchActivity,
+  recordGetContentActivity,
   recordSearchActivity,
   type WebToolStats,
 } from "./observability.ts";
@@ -180,7 +185,12 @@ export function registerWebTools(pi: ExtensionAPI, config: ResolvedExtensionConf
       description: "Retrieve stored web_search or fetch_content results by responseId. Readonly.",
       parameters: GetSearchContentParams,
       async execute(_id: string, params: GetSearchContentInput) {
-        return asToolResult(getSearchContent(params, config.webTools.maxContentChars));
+        const result = getSearchContent(params, config.webTools.maxContentChars);
+        recordGetContentActivity(
+          "error" in result ? "error" : "success",
+          "error" in result ? result.error.code : undefined
+        );
+        return asToolResult(result);
       },
       renderCall(args: GetSearchContentInput, theme: any) {
         return renderGetSearchContentCall(args, theme);

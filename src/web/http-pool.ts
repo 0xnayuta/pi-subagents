@@ -89,14 +89,15 @@ export class HttpConnectionPool {
   /**
    * Fetch with connection pooling
    */
-  async fetch(url: string, options?: RequestInit): Promise<Response> {
-    const parsedUrl = new URL(url);
+  async fetch(url: string | URL, options?: RequestInit): Promise<Response> {
+    const urlString = url instanceof URL ? url.href : url;
+    const parsedUrl = new URL(urlString);
     const agent = this.getAgent(parsedUrl);
 
     this.stats.totalRequests++;
 
     try {
-      const response = await fetch(url, {
+      const response = await fetch(urlString, {
         ...options,
         // @ts-expect-error - Node fetch supports agent option
         agent,
@@ -236,6 +237,6 @@ export function resetConnectionPool(): void {
 // Helper: Fetch with pool
 // ============================================================================
 
-export async function pooledFetch(url: string, options?: RequestInit): Promise<Response> {
+export async function pooledFetch(url: string | URL, options?: RequestInit): Promise<Response> {
   return getConnectionPool().fetch(url, options);
 }

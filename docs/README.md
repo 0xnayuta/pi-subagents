@@ -28,11 +28,9 @@ last_verified: 2026-05-08
 2. [扩展 API 参考](./guides/extension-api.md)
 3. [安全模型](./guides/security-model.md)
 4. [测试策略](./guides/testing.md)
-5. [Web Tools 运行时治理与可观测性](./guides/web-tools-runtime-governance-and-observability.md)
-6. [Web Search 验收清单](./guides/web-search-acceptance-checklist.md)
-7. [问题记录](./issues/issue-log.md)
-8. [发布前检查清单](./guides/release-checklist.md)
-9. [推迟合并 pi-lsp 的综合扩展计划](./guides/deferred-pi-lsp-merge-plan.md)
+5. [问题记录](./issues/issue-log.md)
+6. [发布前检查清单](./guides/release-checklist.md)
+7. [推迟合并 pi-lsp 的综合扩展计划](./guides/deferred-pi-lsp-merge-plan.md)
 
 ## 决策记录
 
@@ -50,6 +48,8 @@ last_verified: 2026-05-08
 - [Web Tools 实施计划](./archive/web-tools-implementation-plan.md)
 - [Web Search Provider 接口设计](./archive/web-search-provider-interface-and-schema.md)
 - [Web 工具增强计划](./archive/web-tool-enhancement-plan.md)
+- [Web Tools 运行时治理与可观测性](./archive/web-tools-runtime-governance-and-observability.md)
+- [Web Search 验收清单](./archive/web-search-acceptance-checklist.md)
 - [简化改造实施记录](./archive/simplification-implementation-history.md)
 - [删除清单审计](./archive/deletion-audit.md)
 - [pi-subagents 简化改造参考文档](./archive/pi-subagents-simplification-guide.md)

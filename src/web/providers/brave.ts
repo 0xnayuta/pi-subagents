@@ -1,6 +1,6 @@
 import type { ResolvedExtensionConfig } from "../../shared/types.ts";
 import { isAbortLikeError, withTimeoutSignal } from "../abort.ts";
-import { recordSearchCall, recordSearchFailure, recordSearchSuccess } from "../observability.ts";
+import { pooledFetch } from "../http-pool.ts";
 import type { SearchResultItem } from "../types.ts";
 import type { ProviderSearchParams, SearchProviderAdapter } from "./types.ts";
 
@@ -59,10 +59,8 @@ async function search(
   url.searchParams.set("q", params.query);
   url.searchParams.set("count", String(params.numResults));
 
-  const searchStart = recordSearchCall("brave");
-
   try {
-    const response = await fetch(url, {
+    const response = await pooledFetch(url, {
       method: "GET",
       signal: withTimeoutSignal(config.webTools.timeoutMs, params.signal),
       headers: {
@@ -74,12 +72,10 @@ async function search(
 
     if (!response.ok) {
       const responseText = await response.text().catch(() => "");
-      recordSearchFailure("brave", `HTTP_${response.status}`, searchStart);
       throw createSearchHttpError(response.status, response.statusText, responseText.slice(0, 300));
     }
 
     const data = (await response.json()) as BraveSearchResponse;
-    recordSearchSuccess("brave", searchStart);
 
     return (data.web?.results ?? [])
       .filter((item) => typeof item.url === "string" && typeof item.title === "string")
@@ -102,7 +98,6 @@ async function search(
     ) {
       throw error;
     }
-    recordSearchFailure("brave", "WEB_SEARCH_NETWORK_ERROR", searchStart);
     throw error;
   }
 }

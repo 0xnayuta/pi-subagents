@@ -1,10 +1,12 @@
 ---
-status: current
+status: historical
 audience: maintainer
 last_verified: 2026-05-09
 ---
 
 # Web Search 验收清单（上线前）
+
+> 本文档已归档，仅保留为历史上线验收记录。当前行为请以 [Web Tools 运行时治理与可观测性](./web-tools-runtime-governance-and-observability.md)、[配置参考](../reference/configuration.md)、[Web Tools 错误码](../reference/web-tools-error-codes.md) 和代码为准。
 
 用于验证内置 `web_search` / `fetch_content` / `get_search_content` 的可用性、稳定性与边界符合预期。
 

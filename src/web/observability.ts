@@ -37,6 +37,7 @@ interface RawProviderStats {
 interface RawStats {
   search: { calls: number; success: number; failure: number };
   fetch: { calls: number; success: number; failure: number };
+  getContent: { calls: number; success: number; failure: number };
   providers: Record<string, RawProviderStats>;
   errorCodes: Record<string, number>;
 }
@@ -44,6 +45,7 @@ interface RawStats {
 const stats: RawStats = {
   search: { calls: 0, success: 0, failure: 0 },
   fetch: { calls: 0, success: 0, failure: 0 },
+  getContent: { calls: 0, success: 0, failure: 0 },
   providers: {},
   errorCodes: {},
 };
@@ -62,8 +64,11 @@ function ensureRawProvider(provider: string): RawProviderStats {
   return stats.providers[provider];
 }
 
-function addActivityEntry(entry: Omit<ActivityEntry, "requestId">): string {
-  const requestId = `req_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+function addActivityEntry(
+  entry: Omit<ActivityEntry, "requestId"> & { requestId?: string }
+): string {
+  const requestId =
+    entry.requestId ?? `req_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const fullEntry: ActivityEntry = { ...entry, requestId };
 
   if (activityLog.length < MAX_ACTIVITY_ENTRIES) {
@@ -121,14 +126,15 @@ export function clearActivityLog(): void {
 export function resetWebToolStats(): void {
   stats.search = { calls: 0, success: 0, failure: 0 };
   stats.fetch = { calls: 0, success: 0, failure: 0 };
+  stats.getContent = { calls: 0, success: 0, failure: 0 };
   stats.providers = {};
   stats.errorCodes = {};
 }
 
 export function getWebToolStats(): WebToolStats {
-  const total = stats.search.calls + stats.fetch.calls;
-  const totalSuccess = stats.search.success + stats.fetch.success;
-  const totalError = stats.search.failure + stats.fetch.failure;
+  const total = stats.search.calls + stats.fetch.calls + stats.getContent.calls;
+  const totalSuccess = stats.search.success + stats.fetch.success + stats.getContent.success;
+  const totalError = stats.search.failure + stats.fetch.failure + stats.getContent.failure;
 
   // Calculate total latency from all providers
   let totalLatencyMs = 0;
@@ -221,15 +227,25 @@ function formatDebugMessage(level: DebugLevel, message: string, details?: unknow
   return `${prefix} ${message}\n${JSON.stringify(details, null, 2)}`;
 }
 
+function isWarningOrErrorMessage(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("fail") ||
+    normalized.includes("error") ||
+    normalized.includes("warn") ||
+    normalized.includes("timeout") ||
+    normalized.includes("abort") ||
+    normalized.includes("rate") ||
+    normalized.includes("limit")
+  );
+}
+
 export function webDebugLog(message: string, details?: unknown): void {
   if (debugEnabled === false) return;
+  if (debugEnabled === "minimal" && !isWarningOrErrorMessage(message)) return;
 
   const formatted = formatDebugMessage(debugEnabled, message, details);
-  if (debugEnabled === "verbose") {
-    console.log(formatted);
-  } else {
-    console.log(formatted);
-  }
+  console.log(formatted);
 }
 
 // ============================================================================
@@ -237,32 +253,59 @@ export function webDebugLog(message: string, details?: unknown): void {
 // ============================================================================
 
 export function recordSearchActivity(
+  entry: Omit<ActivityEntry, "timestamp"> & { timestamp?: number }
+): void;
+export function recordSearchActivity(
   provider: string,
   status: "success" | "error" | "rate_limited",
   startTs: number,
   errorCode?: string
+): void;
+export function recordSearchActivity(
+  providerOrEntry: string | (Omit<ActivityEntry, "timestamp"> & { timestamp?: number }),
+  status?: "success" | "error" | "rate_limited",
+  startTs?: number,
+  errorCode?: string
 ): void {
-  const duration = Date.now() - startTs;
+  if (typeof providerOrEntry === "object") {
+    addActivityEntry({
+      timestamp: providerOrEntry.timestamp ?? Date.now(),
+      type: providerOrEntry.type,
+      provider: providerOrEntry.provider,
+      status: providerOrEntry.status,
+      duration: providerOrEntry.duration,
+      error: providerOrEntry.error,
+      requestId: providerOrEntry.requestId,
+    });
+    return;
+  }
+
+  const provider = providerOrEntry;
+  const effectiveStatus = status ?? "error";
+  const effectiveStartTs = startTs ?? Date.now();
+  const duration = Date.now() - effectiveStartTs;
 
   // Legacy stats - call must happen first to increment counter
   recordSearchCall(provider);
-  if (status === "success") {
-    recordSearchSuccess(provider, startTs);
+  if (effectiveStatus === "success") {
+    recordSearchSuccess(provider, effectiveStartTs);
   } else {
-    recordSearchFailure(provider, errorCode ?? "UNKNOWN", startTs);
+    recordSearchFailure(provider, errorCode ?? "UNKNOWN", effectiveStartTs);
   }
 
   // Activity log
   const code =
-    status === "rate_limited" ? "PROVIDER_RATE_LIMITED" : (errorCode ?? "WEB_SEARCH_FAILED");
+    effectiveStatus === "rate_limited"
+      ? "PROVIDER_RATE_LIMITED"
+      : (errorCode ?? "WEB_SEARCH_FAILED");
 
   addActivityEntry({
-    timestamp: startTs,
+    timestamp: effectiveStartTs,
     type: "search",
     provider,
-    status,
+    status: effectiveStatus,
     duration,
-    error: status !== "success" ? code : undefined,
+    error: effectiveStatus !== "success" ? code : undefined,
   });
 }
 
@@ -289,5 +332,23 @@ export function recordFetchActivity(
     type: "fetch",
     status,
     error: status !== "success" ? code : undefined,
+  });
+}
+
+export function recordGetContentActivity(status: "success" | "error", errorCode?: string): void {
+  stats.getContent.calls += 1;
+  if (status === "success") {
+    stats.getContent.success += 1;
+  } else {
+    stats.getContent.failure += 1;
+    stats.errorCodes[errorCode ?? "GET_SEARCH_CONTENT_FAILED"] =
+      (stats.errorCodes[errorCode ?? "GET_SEARCH_CONTENT_FAILED"] ?? 0) + 1;
+  }
+
+  addActivityEntry({
+    timestamp: Date.now(),
+    type: "get_content",
+    status,
+    error: status !== "success" ? (errorCode ?? "GET_SEARCH_CONTENT_FAILED") : undefined,
   });
 }

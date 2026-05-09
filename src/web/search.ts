@@ -1,5 +1,7 @@
 import type { ResolvedExtensionConfig } from "../shared/types.ts";
 import { isAbortLikeError } from "./abort.ts";
+import { getSearchCache } from "./cache.ts";
+import { withThrottle } from "./concurrency.ts";
 import { mapHttpStatusToError, mapNetworkErrorToWebError, WEB_ERROR_CODES } from "./errors.ts";
 import { truncateContent } from "./extract.ts";
 import { fetchUrlContent } from "./fetch.ts";
@@ -16,7 +18,6 @@ export interface WebSearchSuccess {
 export type WebSearchResult = WebSearchSuccess | WebToolError;
 
 const MAX_QUERIES = 5;
-const INCLUDE_CONTENT_CONCURRENCY = 3;
 
 function error(code: string, message: string): WebToolError {
   return { error: { code, message } };
@@ -88,12 +89,12 @@ async function attachContent(
   for (const query of queries) {
     const results = await mapWithConcurrency(
       query.results,
-      INCLUDE_CONTENT_CONCURRENCY,
+      config.webTools.concurrency.maxConcurrent,
       async (result): Promise<SearchResultItem> => {
         try {
           return {
             ...result,
-            content: await fetchUrlContent(result.url, config, signal),
+            content: await withThrottle(() => fetchUrlContent(result.url, config, signal)),
           };
         } catch {
           return result;
@@ -234,11 +235,20 @@ export async function webSearch(
     const startTs = Date.now();
     try {
       let queryResults: QueryResultData[] = [];
+      const cache = getSearchCache();
       for (const query of queries) {
-        queryResults.push({
+        const cached = cache.get(query, provider.name, numResults);
+        if (cached) {
+          queryResults.push(...cached);
+          continue;
+        }
+
+        const queryResult: QueryResultData = {
           query,
-          results: await provider.search({ query, numResults, signal }, config),
-        });
+          results: await withThrottle(() => provider.search({ query, numResults, signal }, config)),
+        };
+        cache.set(query, provider.name, numResults, [queryResult]);
+        queryResults.push(queryResult);
       }
 
       if (params.includeContent === true) {

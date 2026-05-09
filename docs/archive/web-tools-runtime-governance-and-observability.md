@@ -1,10 +1,12 @@
 ---
-status: current
+status: historical
 audience: maintainer
 last_verified: 2026-05-09
 ---
 
 # Web Tools 运行时治理与可观测性
+
+> 本文档已归档，记录 Web Tools 运行时治理与可观测性增强的完成状态。当前行为请以 [配置参考](../reference/configuration.md)、[Web Tools 错误码](../reference/web-tools-error-codes.md)、[问题记录](../issues/issue-log.md) 和代码为准。
 
 本文说明内置 web tools 的运行时治理策略与可观测能力。
 

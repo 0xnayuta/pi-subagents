@@ -1,6 +1,6 @@
 import type { ResolvedExtensionConfig } from "../../shared/types.ts";
 import { withTimeoutSignal } from "../abort.ts";
-import { recordSearchCall, recordSearchFailure, recordSearchSuccess } from "../observability.ts";
+import { pooledFetch } from "../http-pool.ts";
 import type { SearchResultItem } from "../types.ts";
 import type { ProviderSearchParams, SearchProviderAdapter } from "./types.ts";
 
@@ -63,10 +63,8 @@ async function search(
     );
   }
 
-  const searchStart = recordSearchCall("serper");
-
   try {
-    const response = await fetch(config.webTools.serper.baseUrl, {
+    const response = await pooledFetch(config.webTools.serper.baseUrl, {
       method: "POST",
       signal: withTimeoutSignal(config.webTools.timeoutMs, params.signal),
       headers: {
@@ -82,12 +80,10 @@ async function search(
 
     if (!response.ok) {
       const responseText = await response.text().catch(() => "");
-      recordSearchFailure("serper", `HTTP_${response.status}`, searchStart);
       throw createSearchHttpError(response.status, response.statusText, responseText.slice(0, 300));
     }
 
     const data = (await response.json()) as SerperResponse;
-    recordSearchSuccess("serper", searchStart);
     return normalizeResults(data.organic ?? [], params.numResults);
   } catch (error) {
     if (
@@ -98,7 +94,6 @@ async function search(
     ) {
       throw error;
     }
-    recordSearchFailure("serper", "WEB_SEARCH_NETWORK_ERROR", searchStart);
     throw error;
   }
 }
