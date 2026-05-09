@@ -32,6 +32,9 @@ import {
   checkSubagentDepth,
 } from "../shared/types.ts";
 import { registerWebTools } from "../web/index.ts";
+import { formatDoctorReport, runDoctorChecks } from "./commands/doctor.ts";
+import { formatAgentList, getAgentList } from "./commands/list.ts";
+import { type LogsOptions, formatLogs } from "./commands/logs.ts";
 import { SubagentParams } from "./schemas.ts";
 
 /**
@@ -185,6 +188,9 @@ Example:
   // Register the tool
   pi.registerTool(tool);
 
+  // Register developer commands
+  registerDeveloperCommands(pi);
+
   // Session lifecycle handlers
   const resetSessionState = (ctx: ExtensionContext) => {
     state.baseCwd = ctx.cwd;
@@ -200,5 +206,74 @@ Example:
     // Cleanup state
     state.lastUiContext = null;
     state.currentSessionId = null;
+  });
+}
+
+// ============================================================================
+// Developer Commands
+// ============================================================================
+
+function registerDeveloperCommands(pi: ExtensionAPI): void {
+  // /subagents doctor - Diagnostic check
+  pi.registerCommand("doctor", {
+    description: "Check subagent configuration, agents, and providers",
+    handler: async (_args: string, ctx) => {
+      const cwd = ctx.cwd;
+      try {
+        const report = await runDoctorChecks(cwd);
+        const output = formatDoctorReport(report);
+        console.log(output);
+        ctx.ui.notify(
+          `Doctor: ${report.summary.passed} passed, ${report.summary.warnings} warnings, ${report.summary.failed} failed`,
+          "info"
+        );
+      } catch (error) {
+        ctx.ui.notify(
+          `Doctor check failed: ${error instanceof Error ? error.message : error}`,
+          "error"
+        );
+      }
+    },
+  });
+
+  // /subagents list - List available agents
+  pi.registerCommand("list", {
+    description: "List all available subagents",
+    handler: async (_args: string, ctx) => {
+      try {
+        const report = getAgentList(ctx.cwd);
+        const output = formatAgentList(report);
+        console.log(output);
+        ctx.ui.notify(`Found ${report.total} agents`, "info");
+      } catch (error) {
+        ctx.ui.notify(`List failed: ${error instanceof Error ? error.message : error}`, "error");
+      }
+    },
+  });
+
+  // /subagents logs - Show recent activity logs
+  pi.registerCommand("logs", {
+    description: "Show recent web tool activity logs",
+    handler: async (args: string, ctx) => {
+      try {
+        // Parse options from args
+        const options: LogsOptions = {};
+        if (args.includes("--search")) {
+          options.type = "search";
+        } else if (args.includes("--fetch")) {
+          options.type = "fetch";
+        }
+        const match = args.match(/--limit\s+(\d+)/);
+        if (match) {
+          options.limit = Number.parseInt(match[1], 10);
+        }
+
+        const output = formatLogs(options);
+        console.log(output);
+        ctx.ui.notify("Activity logs printed to console", "info");
+      } catch (error) {
+        ctx.ui.notify(`Logs failed: ${error instanceof Error ? error.message : error}`, "error");
+      }
+    },
   });
 }
