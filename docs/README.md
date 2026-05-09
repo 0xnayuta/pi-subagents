@@ -18,7 +18,8 @@ last_verified: 2026-05-08
 4. [配置参考](./reference/configuration.md)
 5. [结果 Schema](./reference/result-schema.md)
 6. [Web Tools 错误码](./reference/web-tools-error-codes.md)
-7. [已知问题列表](./issues/known-issues.md)
+7. [fetch_content 增强计划](./guides/12-fetch-content-enhancement-plan.md)
+8. [已知问题列表](./issues/known-issues.md)
 
 ## 维护者文档
 
