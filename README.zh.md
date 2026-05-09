@@ -66,6 +66,58 @@ tools: read, grep, find, ls
 You are a custom review subagent for this project.
 ```
 
+## 开发者命令
+
+使用 `/subagents` 前缀访问内置的诊断和监控命令：
+
+### `/subagents doctor`
+
+运行配置、代理和 providers 的诊断检查：
+
+```bash
+/subagents doctor
+```
+
+检查项：
+- 配置验证
+- Agent 发现（内置/用户/项目）
+- Web 工具 provider 可用性
+
+### `/subagents list`
+
+列出所有可用的子代理：
+
+```bash
+/subagents list
+```
+
+显示来自：内置（`agents/`）、用户（`~/.pi/agent/agents/`）、项目（`.pi/agents/`）目录的 agents。
+
+### `/subagents logs`
+
+显示最近的 web 工具活动日志：
+
+```bash
+/subagents logs                    # 显示最近 20 条
+/subagents logs --search          # 按搜索筛选
+/subagents logs --fetch           # 按获取筛选
+/subagents logs --limit 50        # 自定义条数
+```
+
+### `/subagents activity`
+
+交互式 TUI 面板，用于实时活动监控：
+
+```bash
+/subagents activity
+```
+
+功能：
+- 实时统计显示（总数、成功、错误、限流、平均延迟）
+- 键盘导航（↑↓、PageUp/PageDown、Home/End）
+- 快捷操作：`r` 刷新、`c` 清除日志、`s` 重置统计
+- 按 `Esc` 或 `Ctrl+C` 关闭
+
 ## 内置 Web Tools
 
 本扩展内置极简 readonly web tools，供主代理和 `researcher` 子代理使用：
@@ -103,16 +155,46 @@ auto 模式按此顺序尝试 provider，失败后自动降级，直到找到可
 | `serper` | 商业 | ✅ SERPER_API_KEY | auto 模式有 key 即纳入 |
 | `brave` | 商业 | ✅ BRAVE_SEARCH_API_KEY | auto 模式有 key 即纳入 |
 
+### 性能优化
+
+**搜索结果缓存**：使用可配置 TTL 缓存搜索结果，减少重复 API 调用。
+
+**并发限制器**：基于信号量的限流，防止 provider 过载（默认：3 个并发请求，10 个排队）。
+
+**连接池**：HTTP keep-alive 连接池，高效利用网络资源。
+
 ### 错误码
+
+扩展提供了带恢复建议的结构化错误码：
+
+#### Web 工具错误
+
+| Code | 说明 | 恢复建议 |
+|------|------|----------|
+| `WEB_SEARCH_FAILED` | 所有 provider 都失败了 | 尝试下一个 provider 或重试 |
+| `WEB_SEARCH_TIMEOUT` | 搜索请求超时 | 退避后重试 |
+| `WEB_SEARCH_NO_RESULTS` | 未返回结果 | 检查查询词或 provider |
+| `WEB_SEARCH_INVALID_QUERY` | 无效的查询格式 | 修复查询后重试 |
+| `PROVIDER_RATE_LIMITED` | Provider 限流 | 等待后重试（5s 退避） |
+| `PROVIDER_UNAVAILABLE` | Provider 服务错误 | 尝试下一个 provider |
+| `PROVIDER_AUTH_FAILED` | API key 无效/缺失 | 检查 API key 配置 |
+| `CONTENT_FETCH_FAILED` | 内容获取失败 | 重试或跳过 |
+| `CONTENT_FETCH_TIMEOUT` | 获取超时 | 尝试 Jina reader 兜底 |
+| `CONTENT_FETCH_TOO_LARGE` | 响应过大 | 缩小范围 |
+| `NETWORK_ERROR` | 网络连接错误 | 检查网络后重试 |
+
+#### 子代理错误
 
 | Code | 说明 |
 |------|------|
-| `WEB_SEARCH_AUTH_REQUIRED` | 缺少或无效 API key（含 HTTP 401/403） |
-| `WEB_SEARCH_RATE_LIMIT` | Provider 限流（HTTP 429） |
-| `WEB_SEARCH_PROVIDER_ERROR` | Provider 临时错误（HTTP 5xx） |
-| `WEB_SEARCH_NETWORK_ERROR` | 网络错误（DNS、连接失败等） |
-| `SUBAGENT_TIMEOUT` | 单次搜索超时 |
-| `INVALID_INPUT` | 缺少 query 或不支持的 provider 值 |
+| `INVALID_INPUT` | 缺少必需参数或不支持的配置值 |
+| `SUBAGENTS_DISABLED` | 子代理功能已禁用 |
+| `UNKNOWN_AGENT` | 未知代理名称 |
+| `SUBAGENT_DISABLED` | 该代理已禁用 |
+| `SUBAGENT_DEPTH_EXCEEDED` | 递归深度超限（maxSubagentDepth = 1） |
+| `SUBAGENT_TIMEOUT` | 执行超时 |
+| `SUBAGENT_FAILED` | 子代理执行失败 |
+| `SUBAGENT_OUTPUT_TRUNCATED` | 输出被截断 |
 
 ### 边界
 
@@ -139,6 +221,21 @@ auto 模式按此顺序尝试 provider，失败后自动降级，直到找到可
     "maxResponseBytes": 1048576,
     "maxContentChars": 30000,
     "maxResults": 5,
+    "debug": "false",
+    "cache": {
+      "enabled": false,
+      "maxEntries": 50,
+      "ttlMs": 300000
+    },
+    "concurrency": {
+      "maxConcurrent": 3,
+      "maxQueueSize": 10
+    },
+    "connectionPool": {
+      "maxSockets": 10,
+      "maxFreeSockets": 5,
+      "timeout": 60000
+    },
     "searxng": {
       "enabled": false,
       "baseUrl": ""
@@ -164,10 +261,21 @@ auto 模式按此顺序尝试 provider，失败后自动降级，直到找到可
 
 ### 配置说明
 
+**Provider 设置：**
 - `provider`: `"ddgs"` | `"auto"` | `"brave"` | `"tavily"` | `"serper"` | `"openserp"` | `"searxng"`
-- `providerPriority`: auto 模式时，控制同 tier 内的候选顺序（不在此列表中的 provider 会被忽略）
-- `searxng.baseUrl`: 使用 SearXNG 时应显式配置 endpoint（如 `http://127.0.0.1:8080`）
-- 商业 provider 的 `enabled` 控制是否允许**显式调用**；auto 模式下有 key 即自动纳入
+- `providerPriority`: auto 模式时，控制同 tier 内的候选顺序
+- `searxng.baseUrl`: 使用 SearXNG 时应显式配置 endpoint
+
+**性能设置：**
+- `cache.enabled`: 启用搜索结果缓存（默认：`false`）
+- `cache.maxEntries`: 最大缓存条目数（默认：`50`）
+- `cache.ttlMs`: 缓存 TTL，毫秒（默认：`300000` = 5 分钟）
+- `concurrency.maxConcurrent`: 最大并发请求数（默认：`3`）
+- `concurrency.maxQueueSize`: 最大排队请求数（默认：`10`）
+- `connectionPool.maxSockets`: 每主机最大 socket 数（默认：`10`）
+
+**调试设置：**
+- `debug`: 调试级别 - `"false"`（默认，无输出）、`"minimal"`（仅错误）、`"verbose"`（所有请求）
 
 ## 限制
 
@@ -178,7 +286,6 @@ MVP 版本 **不支持** 以下功能：
 - ❌ parallel execution
 - ❌ intercom/contact_supervisor
 - ❌ worktree 管理
-- ❌ TUI widget
 - ❌ slash commands
 - ❌ skills 注入
 - ❌ bash 工具在只读代理中
@@ -187,15 +294,11 @@ MVP 版本 **不支持** 以下功能：
 
 子代理不能再调用子代理（`maxSubagentDepth = 1`）。子进程不会注册 `subagent` 工具。
 
-## 错误码
+## 测试
 
-| Code | 说明 |
-|------|------|
-| `INVALID_INPUT` | 缺少必需参数或不支持的配置值 |
-| `SUBAGENTS_DISABLED` | 子代理功能已禁用 |
-| `UNKNOWN_AGENT` | 未知代理名称 |
-| `SUBAGENT_DISABLED` | 该代理已禁用 |
-| `SUBAGENT_DEPTH_EXCEEDED` | 递归深度超限 |
-| `SUBAGENT_TIMEOUT` | 执行超时 |
-| `SUBAGENT_FAILED` | 子代理执行失败 |
-| `SUBAGENT_OUTPUT_TRUNCATED` | 输出被截断 |
+```bash
+pnpm test           # 运行所有测试
+pnpm test:unit      # 仅运行单元测试
+```
+
+当前测试覆盖：163 个测试，涵盖可观测性、错误处理、缓存、并发、命令和 web 工具。

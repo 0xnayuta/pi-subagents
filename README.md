@@ -66,6 +66,58 @@ tools: read, grep, find, ls
 You are a custom review subagent for this project.
 ```
 
+## Developer Commands
+
+Use `/subagents` prefix to access built-in diagnostic and monitoring commands:
+
+### `/subagents doctor`
+
+Run diagnostic checks on configuration, agents, and providers:
+
+```bash
+/subagents doctor
+```
+
+Checks:
+- Configuration validation
+- Agent discovery (builtin/user/project)
+- Web tool provider availability
+
+### `/subagents list`
+
+List all available subagents:
+
+```bash
+/subagents list
+```
+
+Shows agents from: builtin (`agents/`), user (`~/.pi/agent/agents/`), and project (`.pi/agents/`) directories.
+
+### `/subagents logs`
+
+Display recent web tool activity logs:
+
+```bash
+/subagents logs                    # Show last 20 entries
+/subagents logs --search          # Filter by search
+/subagents logs --fetch           # Filter by fetch
+/subagents logs --limit 50        # Custom limit
+```
+
+### `/subagents activity`
+
+Interactive TUI panel for real-time activity monitoring:
+
+```bash
+/subagents activity
+```
+
+Features:
+- Real-time stats display (total, success, errors, rate-limited, avg latency)
+- Keyboard navigation (↑↓, PageUp/PageDown, Home/End)
+- Quick actions: `r` refresh, `c` clear logs, `s` reset stats
+- Press `Esc` or `Ctrl+C` to close
+
 ## Built-in Web Tools
 
 This extension ships with lightweight readonly web tools for the main agent and the `researcher` subagent:
@@ -103,16 +155,46 @@ In auto mode, providers are tried in this order; on failure, it automatically fa
 | `serper` | Commercial | ✅ SERPER_API_KEY | Auto mode includes if key is present |
 | `brave` | Commercial | ✅ BRAVE_SEARCH_API_KEY | Auto mode includes if key is present |
 
+### Performance Optimizations
+
+**Search Result Caching**: Cache search results with configurable TTL to reduce redundant API calls.
+
+**Concurrency Limiter**: Semaphore-based throttling prevents overwhelming providers (default: 3 concurrent requests, 10 queued).
+
+**Connection Pool**: HTTP keep-alive connection pooling for efficient network resource usage.
+
 ### Error Codes
+
+The extension provides structured error codes with recovery suggestions:
+
+#### Web Tool Errors
+
+| Code | Description | Recovery |
+|------|-------------|----------|
+| `WEB_SEARCH_FAILED` | All providers failed | Try next provider or retry |
+| `WEB_SEARCH_TIMEOUT` | Search request timed out | Retry with backoff |
+| `WEB_SEARCH_NO_RESULTS` | No results returned | Check query or provider |
+| `WEB_SEARCH_INVALID_QUERY` | Invalid query format | Fix query and retry |
+| `PROVIDER_RATE_LIMITED` | Provider rate limit hit | Wait and retry (5s backoff) |
+| `PROVIDER_UNAVAILABLE` | Provider service error | Try next provider |
+| `PROVIDER_AUTH_FAILED` | Invalid/missing API key | Check API key configuration |
+| `CONTENT_FETCH_FAILED` | Content fetch failed | Retry or skip |
+| `CONTENT_FETCH_TIMEOUT` | Fetch timed out | Try Jina reader fallback |
+| `CONTENT_FETCH_TOO_LARGE` | Response too large | Reduce scope |
+| `NETWORK_ERROR` | Network connectivity error | Check network, retry |
+
+#### Subagent Errors
 
 | Code | Description |
 |------|-------------|
-| `WEB_SEARCH_AUTH_REQUIRED` | Missing or invalid API key (includes HTTP 401/403) |
-| `WEB_SEARCH_RATE_LIMIT` | Provider rate limit reached (HTTP 429) |
-| `WEB_SEARCH_PROVIDER_ERROR` | Provider temporary error (HTTP 5xx) |
-| `WEB_SEARCH_NETWORK_ERROR` | Network error (DNS, connection failure, etc.) |
-| `SUBAGENT_TIMEOUT` | Single search request timeout |
-| `INVALID_INPUT` | Missing query or unsupported provider value |
+| `INVALID_INPUT` | Missing required parameter or unsupported config |
+| `SUBAGENTS_DISABLED` | Subagent feature is disabled |
+| `UNKNOWN_AGENT` | Unknown agent name |
+| `SUBAGENT_DISABLED` | This agent is disabled |
+| `SUBAGENT_DEPTH_EXCEEDED` | Recursion depth exceeded (maxSubagentDepth = 1) |
+| `SUBAGENT_TIMEOUT` | Execution timeout |
+| `SUBAGENT_FAILED` | Subagent execution failed |
+| `SUBAGENT_OUTPUT_TRUNCATED` | Output was truncated |
 
 ### Scope & Limitations
 
@@ -139,6 +221,21 @@ Configure in `~/.pi/agent/extensions/subagent/config.json`:
     "maxResponseBytes": 1048576,
     "maxContentChars": 30000,
     "maxResults": 5,
+    "debug": "false",
+    "cache": {
+      "enabled": false,
+      "maxEntries": 50,
+      "ttlMs": 300000
+    },
+    "concurrency": {
+      "maxConcurrent": 3,
+      "maxQueueSize": 10
+    },
+    "connectionPool": {
+      "maxSockets": 10,
+      "maxFreeSockets": 5,
+      "timeout": 60000
+    },
     "searxng": {
       "enabled": false,
       "baseUrl": ""
@@ -164,10 +261,21 @@ Configure in `~/.pi/agent/extensions/subagent/config.json`:
 
 ### Config Reference
 
+**Provider Settings:**
 - `provider`: `"ddgs"` | `"auto"` | `"brave"` | `"tavily"` | `"serper"` | `"openserp"` | `"searxng"`
-- `providerPriority`: In auto mode, controls within-tier candidate ordering (providers not in the list are ignored)
-- `searxng.baseUrl`: Must be explicitly set when using SearXNG (e.g., `http://127.0.0.1:8080`)
-- Commercial provider `enabled` controls whether **explicit invocation** is allowed; auto mode auto-includes if a key is present
+- `providerPriority`: In auto mode, controls within-tier candidate ordering
+- `searxng.baseUrl`: Must be explicitly set when using SearXNG
+
+**Performance Settings:**
+- `cache.enabled`: Enable search result caching (default: `false`)
+- `cache.maxEntries`: Maximum cache entries (default: `50`)
+- `cache.ttlMs`: Cache TTL in milliseconds (default: `300000` = 5 minutes)
+- `concurrency.maxConcurrent`: Max concurrent requests (default: `3`)
+- `concurrency.maxQueueSize`: Max queued requests (default: `10`)
+- `connectionPool.maxSockets`: Max sockets per host (default: `10`)
+
+**Debug Settings:**
+- `debug`: Debug level - `"false"` (default, no output), `"minimal"` (errors only), `"verbose"` (all requests)
 
 ## Limitations
 
@@ -178,7 +286,6 @@ The MVP version **does not support** the following:
 - ❌ parallel execution
 - ❌ intercom/contact_supervisor
 - ❌ worktree management
-- ❌ TUI widget
 - ❌ slash commands
 - ❌ skills injection
 - ❌ bash tool in readonly agents
@@ -187,15 +294,11 @@ The MVP version **does not support** the following:
 
 Subagents cannot invoke subagents (`maxSubagentDepth = 1`). Child processes do not register the `subagent` tool.
 
-## Error Codes
+## Testing
 
-| Code | Description |
-|------|-------------|
-| `INVALID_INPUT` | Missing required parameter or unsupported config value |
-| `SUBAGENTS_DISABLED` | Subagent feature is disabled |
-| `UNKNOWN_AGENT` | Unknown agent name |
-| `SUBAGENT_DISABLED` | This agent is disabled |
-| `SUBAGENT_DEPTH_EXCEEDED` | Recursion depth exceeded |
-| `SUBAGENT_TIMEOUT` | Execution timeout |
-| `SUBAGENT_FAILED` | Subagent execution failed |
-| `SUBAGENT_OUTPUT_TRUNCATED` | Output was truncated |
+```bash
+pnpm test           # Run all tests
+pnpm test:unit      # Run unit tests only
+```
+
+Current test coverage: 163 tests across observability, errors, cache, concurrency, commands, and web tools.
