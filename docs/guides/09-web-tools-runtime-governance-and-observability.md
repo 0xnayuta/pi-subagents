@@ -1,12 +1,12 @@
 ---
 status: current
 audience: maintainer
-last_verified: 2026-05-08
+last_verified: 2026-05-09
 ---
 
 # Web Tools 运行时治理与可观测性
 
-本文说明内置 web tools 在 P2 后的运行时治理策略与最小可观测能力。
+本文说明内置 web tools 的运行时治理策略与可观测能力。
 
 适用范围：
 
@@ -50,8 +50,8 @@ last_verified: 2026-05-08
 
 ### 1.3 与输出截断的关系
 
-- 存储治理：控制“存多少”（`maxStoredContentChars`）
-- 输出治理：控制“返回多少”（`maxContentChars`）
+- 存储治理：控制"存多少"（`maxStoredContentChars`）
+- 输出治理：控制"返回多少"（`maxContentChars`）
 
 二者独立生效：
 
@@ -62,7 +62,7 @@ last_verified: 2026-05-08
 
 ## 2. SSRF 与地址安全增强
 
-P2 增强点：
+增强点：
 
 - 支持 bracket IPv6 host 的规范化检查（如 `[::1]`）
 - 拒绝 `localhost`/`.localhost`、`.local`、`.internal`
@@ -75,38 +75,157 @@ P2 增强点：
 
 ---
 
-## 3. 可观测性（Minimal Observability）
+## 3. 可观测性（Observability）
 
-### 3.1 调试日志开关
+### 3.1 调试日志级别
 
-配置项：`webTools.debug`（默认 `false`）
+配置项：`webTools.debug`（默认 `"false"`）
 
-行为：
-
-- `false`：不输出 web tools 调试日志
-- `true`：输出前缀为 `[web-tools]` 的轻量日志
+| 级别 | 行为 |
+|------|------|
+| `"false"` | 不输出 web tools 调试日志 |
+| `"minimal"` | 仅输出错误和警告 |
+| `"verbose"` | 输出所有请求详情，包括成功请求 |
 
 日志目标：
 
 - 方便维护者排障
 - 默认不污染用户常规输出
 
-### 3.2 会话内统计项
+### 3.2 活动日志（Activity Log）
 
-当前统计维度（会话内内存统计）：
+内存中维护最近 100 条活动记录：
 
-- search/fetch：调用次数、成功数、失败数
-- provider（当前主要是 brave）：调用次数、成功数、失败数、累计延迟
-- error code：各错误码计数
+```ts
+interface ActivityEntry {
+  timestamp: number;
+  type: "search" | "fetch" | "get_content";
+  provider?: string;
+  status: "pending" | "success" | "error" | "rate_limited";
+  duration?: number;
+  error?: string;
+  requestId: string;
+}
+```
 
-说明：
+查看方式：
 
-- 统计在 `session_start` / `session_shutdown` 会重置
-- 统计不做跨会话持久化
+```bash
+/subagents logs                    # 显示最近 20 条
+/subagents logs --search          # 按搜索筛选
+/subagents logs --fetch           # 按获取筛选
+/subagents logs --limit 50        # 自定义条数
+```
+
+### 3.3 实时统计（Web Tool Stats）
+
+会话内统计维度：
+
+| 统计项 | 说明 |
+|--------|------|
+| `totalRequests` | 总请求数 |
+| `successCount` | 成功数 |
+| `errorCount` | 错误数 |
+| `rateLimitedCount` | 限流次数 |
+| `averageLatencyMs` | 平均延迟 |
+| `providerStats` | 各 provider 统计 |
+
+查看方式：
+
+```bash
+/subagents logs    # 输出底部显示统计摘要
+/subagents activity # 交互式 TUI 面板（实时刷新）
+```
+
+### 3.4 交互式 Activity 面板
+
+```bash
+/subagents activity
+```
+
+功能：
+- 实时显示活动记录和统计
+- 键盘导航（↑↓、PageUp/PageDown、Home/End）
+- 快捷操作：
+  - `r` - 刷新数据
+  - `c` - 清除日志
+  - `s` - 重置统计
+- `Esc` 或 `Ctrl+C` - 关闭面板
+
+### 3.5 诊断命令
+
+```bash
+/subagents doctor   # 运行完整诊断检查
+/subagents list    # 列出所有可用 agents
+```
 
 ---
 
-## 4. Abort/Timeout 一致性模型
+## 4. 性能优化（Performance）
+
+### 4.1 搜索结果缓存
+
+配置项：`webTools.cache`
+
+```json
+{
+  "cache": {
+    "enabled": false,
+    "maxEntries": 50,
+    "ttlMs": 300000
+  }
+}
+```
+
+行为：
+
+- 基于 query + provider + numResults 生成缓存 key
+- 支持 LRU 淘汰策略
+- 支持 TTL 过期
+- 追踪命中/未命中统计
+
+### 4.2 并发请求限制
+
+配置项：`webTools.concurrency`
+
+```json
+{
+  "concurrency": {
+    "maxConcurrent": 3,
+    "maxQueueSize": 10
+  }
+}
+```
+
+行为：
+
+- 使用 semaphore 模式限制并发
+- 队列满时抛出 `QueueFullError`
+- 追踪活跃/排队/总处理数
+
+### 4.3 HTTP 连接池
+
+配置项：`webTools.connectionPool`
+
+```json
+{
+  "connectionPool": {
+    "maxSockets": 10,
+    "maxFreeSockets": 5,
+    "timeout": 60000
+  }
+}
+```
+
+行为：
+
+- HTTP keep-alive 连接复用
+- 可配置 socket 数量
+- 请求统计
+
+---
+
+## 5. Abort/Timeout 一致性模型
 
 统一策略：
 
@@ -116,11 +235,11 @@ P2 增强点：
 收益：
 
 - `web_search` 与 `fetch_content` 的取消/超时语义一致
-- 错误分类更稳定（统一映射为 `SUBAGENT_TIMEOUT`）
+- 错误分类更稳定
 
 ---
 
-## 5. 推荐配置模板
+## 6. 推荐配置模板
 
 ```json
 {
@@ -132,11 +251,23 @@ P2 增强点：
     "maxResponseBytes": 1048576,
     "maxContentChars": 30000,
     "maxResults": 5,
-    "enableJinaFallback": false,
-    "jinaTimeoutMs": 8000,
     "maxStoredResults": 100,
     "maxStoredContentChars": 200000,
-    "debug": false,
+    "debug": "false",
+    "cache": {
+      "enabled": false,
+      "maxEntries": 50,
+      "ttlMs": 300000
+    },
+    "concurrency": {
+      "maxConcurrent": 3,
+      "maxQueueSize": 10
+    },
+    "connectionPool": {
+      "maxSockets": 10,
+      "maxFreeSockets": 5,
+      "timeout": 60000
+    },
     "openserp": {
       "enabled": false,
       "baseUrl": "https://api.openserp.com/search",
@@ -163,13 +294,17 @@ P2 增强点：
 
 ---
 
-## 6. 运维建议
+## 7. 运维建议
 
 - 若出现 `responseId` 频繁失效：
   - 提高 `maxStoredResults`
 - 若内存压力偏高：
   - 降低 `maxStoredResults` 与 `maxStoredContentChars`
+  - 关闭 `cache.enabled`
 - 若排障需要：
-  - 临时启用 `webTools.debug: true`，问题定位后关闭
+  - 临时启用 `webTools.debug: "verbose"`，问题定位后关闭
 - 若超时较多：
   - 先减小查询规模，再视情况上调 `timeoutMs`
+- 若 API 限流频繁：
+  - 降低 `concurrency.maxConcurrent`
+  - 启用 `cache.enabled` 减少重复请求

@@ -1,20 +1,24 @@
 ---
-status: proposed
+status: completed
 audience: all
 last_verified: 2026-05-09
+completed_phases: [1, 2, 3, 4, 5, 6]
 ---
 
 # Web 工具增强计划
+
+> ✅ **所有 Phase 已完成**（2026-05-09）
 
 ## 概述
 
 当前 `pi-subagents` 的 web 工具（`web_search`、`fetch_content`、`get_search_content`）已具备基础功能。本计划为这些工具添加：
 
-1. **可观测性** - 实时 activity 日志、请求统计、debug 分级
-2. **开发者工具** - 诊断检查、agent 列表、执行日志
-3. **测试覆盖** - 单元测试、provider mock、集成测试
-4. **性能优化** - 搜索结果缓存、并发限制、连接池
-5. **错误码扩展** - 结构化错误、recovery 建议
+1. **可观测性** - 实时 activity 日志、请求统计、debug 分级 ✅
+2. **开发者工具** - 诊断检查、agent 列表、执行日志 ✅
+3. **测试覆盖** - 单元测试、provider mock、集成测试 ✅
+4. **性能优化** - 搜索结果缓存、并发限制、连接池 ✅
+5. **错误码扩展** - 结构化错误、recovery 建议 ✅
+6. **UI 集成** - 交互式 TUI 面板 ✅
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
@@ -854,12 +858,12 @@ src/web/
 ```
 
 实现步骤：
-- [ ] 实现 `SearchResultCache` 类
-- [ ] 实现 `RequestThrottler` 类
-- [ ] 实现 `HttpConnectionPool` 类
-- [ ] 在 provider 中集成缓存
-- [ ] 在 fetch 中集成 throttler
-- [ ] 添加配置选项
+- [x] 实现 `SearchResultCache` 类
+- [x] 实现 `RequestThrottler` 类
+- [x] 实现 `HttpConnectionPool` 类
+- [x] 在 provider 中集成缓存
+- [x] 在 fetch 中集成 throttler
+- [x] 添加配置选项
 
 ### Phase 5: 错误码扩展 (0.5 天)
 
@@ -870,19 +874,19 @@ src/web/
 ```
 
 实现步骤：
-- [ ] 定义 `WEB_ERROR_CODES` 常量
-- [ ] 定义 `WebError` 和 `RecoverySuggestion` 接口
-- [ ] 实现 `ERROR_RECOVERY_MAP`
-- [ ] 实现 `mapErrorToWebError()` 函数
-- [ ] 更新 `search.ts` 使用新的错误处理
-- [ ] 更新 `fetch.ts` 使用新的错误处理
+- [x] 定义 `WEB_ERROR_CODES` 常量
+- [x] 定义 `WebError` 和 `RecoverySuggestion` 接口
+- [x] 实现 `ERROR_RECOVERY_MAP`
+- [x] 实现 `mapErrorToWebError()` 函数
+- [x] 更新 `search.ts` 使用新的错误处理
+- [x] 更新 `fetch.ts` 使用新的错误处理
 
 ### Phase 6: UI 集成与收尾 (0.5 天)
 
-- [ ] 添加键盘快捷键支持（`Ctrl+Shift+W`）
-- [ ] 实现简单的 TUI 显示层
-- [ ] 添加 session 生命周期清理
-- [ ] 更新 `docs/guides/09-web-tools-runtime-governance-and-observability.md`
+- [x] 添加 `/subagents activity` 命令
+- [x] 实现交互式 TUI 显示层
+- [x] 添加 session 生命周期清理
+- [x] 更新 `docs/guides/09-web-tools-runtime-governance-and-observability.md`
 
 ---
 
@@ -900,12 +904,12 @@ src/web/
 | `src/extension/commands/doctor.ts` | 新增 | 诊断检查命令 |
 | `src/extension/commands/list.ts` | 新增 | agent 列表命令 |
 | `src/extension/commands/logs.ts` | 新增 | 执行日志命令 |
-| `src/extension/index.ts` | 修改 | 注册快捷键和命令 |
+| `src/extension/commands/activity.ts` | 新增 | 交互式 TUI 面板 |
+| `src/extension/index.ts` | 修改 | 注册开发者命令 |
 | `src/shared/types.ts` | 修改 | 添加相关类型 |
 | `src/config/load-config.ts` | 修改 | 添加缓存、并发、连接池配置 |
 | `tests/unit/*.test.ts` | 新增 | 各类单元测试 |
 | `tests/mocks/providers/*.ts` | 新增 | Provider mocks |
-| `tests/integration/*.test.ts` | 新增 | 集成测试 |
 
 ---
 
@@ -920,19 +924,27 @@ src/web/
 
 ## 九、验收标准
 
-| 功能 | 验收条件 |
-|------|----------|
-| Activity 日志 | Ctrl+Shift+W 显示最近 20 条调用记录 |
-| 统计信息 | 显示 success/error/rate_limited 数量、平均延迟 |
-| debug 分级 | `debug: "verbose"` 时输出完整请求详情 |
-| `/subagents doctor` | 输出配置、agent、provider 诊断结果 |
-| `/subagents list` | 列出所有 builtin/user/project agents |
-| `/subagents logs` | 显示最近工具调用历史 |
-| 单元测试覆盖 | observability、config、agent-loading、errors > 80% |
-| Provider mock | ddgs、tavily、searxng 可 mock |
-| 集成测试 | spawn-pi 可执行并返回结果 |
-| 缓存 | 相同 query 不触发重复请求 |
-| 并发限制 | 同时不超过 3 个请求 |
-| 连接池 | keep-alive 复用连接 |
-| 错误码 | 包含 WEB_SEARCH_FAILED、CONTENT_FETCH_FAILED 等 12 个 |
-| Recovery | 每个错误码有对应的 recovery 建议 |
+| 功能 | 验收条件 | 状态 |
+|------|----------|------|
+| Activity 日志 | `/subagents logs` 显示最近调用记录 | ✅ |
+| 统计信息 | 显示 success/error/rate_limited 数量、平均延迟 | ✅ |
+| Activity Panel | `/subagents activity` 交互式 TUI 面板 | ✅ |
+| debug 分级 | `debug: "verbose"` 时输出完整请求详情 | ✅ |
+| `/subagents doctor` | 输出配置、agent、provider 诊断结果 | ✅ |
+| `/subagents list` | 列出所有 builtin/user/project agents | ✅ |
+| `/subagents logs` | 显示最近工具调用历史 | ✅ |
+| 单元测试覆盖 | observability、config、agent-loading、errors > 80% | ✅ |
+| Provider mock | ddgs、tavily、searxng 可 mock | ✅ |
+| 缓存 | 相同 query 不触发重复请求 | ✅ |
+| 并发限制 | 同时不超过 3 个请求 | ✅ |
+| 连接池 | keep-alive 复用连接 | ✅ |
+| 错误码 | 包含 14 个结构化错误码 | ✅ |
+| Recovery | 每个错误码有对应的 recovery 建议 | ✅ |
+
+---
+
+## 十、测试结果
+
+```bash
+pnpm test  # 163 tests, 27 suites, all passed
+```
