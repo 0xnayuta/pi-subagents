@@ -1,13 +1,13 @@
 ---
-status: completed
+status: current
 audience: all
 last_verified: 2026-05-09
-completed_phases: [1, 2, 3, 4, 5, 6]
+completed_phases: [1, 2, 3, 4, 5, 6, 7]
 ---
 
 # Web 工具增强计划
 
-> ✅ **所有 Phase 已完成**（2026-05-09）
+> ✅ Phase 1-7 已完成（2026-05-09）
 
 ## 概述
 
@@ -19,6 +19,7 @@ completed_phases: [1, 2, 3, 4, 5, 6]
 4. **性能优化** - 搜索结果缓存、并发限制、连接池 ✅
 5. **错误码扩展** - 结构化错误、recovery 建议 ✅
 6. **UI 集成** - 交互式 TUI 面板 ✅
+7. **工具输出折叠/展开** - `web_search`、`fetch_content`、`get_search_content` 默认摘要，Ctrl+O 展开完整内容 ✅
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
@@ -48,6 +49,11 @@ completed_phases: [1, 2, 3, 4, 5, 6]
 │  ├── WEB_SEARCH_FAILED / CONTENT_FETCH_FAILED                    │
 │  ├── PROVIDER_RATE_LIMITED / INVALID_URL_FORMAT                   │
 │  └── recovery 建议                                                │
+│                                                                    │
+│  输出折叠/展开                                                     │
+│  ├── web_search 默认显示 query/result 计数摘要                    │
+│  ├── fetch_content 默认显示 URL/content 摘要                      │
+│  └── get_search_content 默认显示命中内容摘要，Ctrl+O 展开完整 JSON │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -847,6 +853,113 @@ src/web/
 - [x] 添加 session 生命周期清理
 - [x] 更新 `docs/guides/09-web-tools-runtime-governance-and-observability.md`
 
+### Phase 7: Web 工具输出折叠/展开渲染增强 (0.5-1 天)
+
+目标：利用 pi `ToolExecutionComponent` 的 `expanded` 渲染机制，为 `web_search`、`fetch_content`、`get_search_content` 添加自定义 `renderCall` / `renderResult`，让工具默认只展示摘要，用户按 `Ctrl+O`（`app.tools.expand`）时展开查看完整内容。
+
+#### 设计原则
+
+- **不改变工具执行结果**：`execute()`、`content`、`details` 保持兼容，LLM 上下文可见内容不因 TUI 摘要而减少。
+- **仅优化 TUI 展示**：摘要/完整视图只影响交互界面渲染。
+- **默认简洁**：收起态显示可判断成功/失败和定位来源的关键信息。
+- **展开可审计**：展开态应显示完整 JSON 或足够完整的结构化内容，便于用户复制、排查和验证。
+- **错误优先可见**：错误结果在收起态也必须显示错误码、message、recovery 建议摘要。
+- **处理 partial**：`isPartial` 时显示进行中状态，例如 `Searching...` / `Fetching...` / `Loading cached content...`。
+
+#### 工具渲染策略
+
+| 工具 | 收起态摘要 | 展开态内容 |
+|------|------------|------------|
+| `web_search` | query 数量、结果数量、responseId、前 3 条标题/URL | 完整 `details` JSON 或格式化后的所有查询与结果 |
+| `fetch_content` | URL 数量、responseId、每个 URL 的状态、标题/域名、前 300-500 字内容摘要 | 完整 `details` JSON 或按 URL 分组的完整提取文本 |
+| `get_search_content` | responseId、选择器（url/urlIndex/query/queryIndex）、命中条目数、内容长度、前 300-500 字 | 完整返回内容，必要时保留 JSON 结构 |
+
+#### 实现位置
+
+当前三个 web 工具在 `src/web/index.ts` 的 `registerWebTools()` 中注册。Phase 7 优先在已有工具定义上直接增加 renderer，而不是重新注册同名工具：
+
+```typescript
+pi.registerTool({
+  name: "fetch_content",
+  label: "Fetch Content",
+  description: "Fetch HTTP/HTTPS URL content and extract readable text. Readonly.",
+  parameters: FetchContentParams as any,
+  execute(_id: string, params: FetchContentInput, signal: AbortSignal) {
+    return fetchContent(params, config, signal).then(asToolResult);
+  },
+  renderCall(args, theme, context) { /* concise call line */ },
+  renderResult(result, { expanded, isPartial }, theme, context) { /* summary/full */ },
+} as any);
+```
+
+建议抽取公共渲染工具，避免三个 renderer 重复处理 JSON、截断、错误和 ANSI 样式：
+
+```
+src/web/
+├── index.ts              # 注册 renderCall/renderResult
+└── renderers.ts          # 新增：web tool TUI render helpers
+```
+
+#### 建议新增 helper
+
+```typescript
+// src/web/renderers.ts
+export function safeStringify(value: unknown): string;
+export function truncateText(text: string, maxChars: number): { text: string; truncated: boolean };
+export function getTextContent(result: AgentToolResult<any>): string;
+export function renderJsonSummary(...): Component;
+export function renderWebSearchResult(...): Component;
+export function renderFetchContentResult(...): Component;
+export function renderGetSearchContentResult(...): Component;
+```
+
+#### 配置建议
+
+为避免硬编码摘要长度，可扩展 `webTools.ui` 配置，默认开启：
+
+```typescript
+webTools: {
+  ui?: {
+    compactResults?: boolean;        // default: true
+    summaryChars?: number;           // default: 500
+    maxPreviewItems?: number;        // default: 3
+    expandedMaxChars?: number;       // default: 0 表示不额外截断，由工具原结果限制控制
+    showExpandHint?: boolean;        // default: true
+  }
+}
+```
+
+若为了保持 MVP 极简，也可以先不新增配置，使用内部常量实现；后续再按需求配置化。
+
+#### 测试计划
+
+新增或扩展单元测试，覆盖：
+
+- [ ] `renderCall` 能正确显示 query / URL / responseId 关键信息
+- [ ] 收起态不输出完整大段内容，只输出摘要和展开提示
+- [ ] 展开态输出完整内容或完整结构化 JSON
+- [ ] `isPartial` 显示进行中状态
+- [ ] 错误结果收起态显示错误码与 recovery 摘要
+- [ ] 多 URL / 多 query 场景的摘要稳定、可读
+- [ ] 空结果、未知 responseId、selector 错误的渲染不会抛异常
+
+建议测试文件：
+
+```
+tests/unit/web-renderers.test.ts
+```
+
+#### 验收标准
+
+| 功能 | 验收条件 | 状态 |
+|------|----------|------|
+| `web_search` 摘要渲染 | 默认只显示查询、结果数、responseId、前几条结果 | ✅ |
+| `fetch_content` 摘要渲染 | 默认只显示 URL、状态、内容摘要、responseId | ✅ |
+| `get_search_content` 摘要渲染 | 默认只显示选择器、命中数、内容长度、摘要 | ✅ |
+| Ctrl+O 展开 | 展开态可查看完整内容 | ✅ |
+| 错误结果可读 | 收起态显示错误码、message、recovery | ✅ |
+| 测试覆盖 | renderer 单元测试覆盖摘要/展开/错误/partial | ✅ |
+
 ---
 
 ## 七、文件变更摘要
@@ -858,6 +971,7 @@ src/web/
 | `src/web/concurrency.ts` | 新增 | 并发请求限制器 |
 | `src/web/http-pool.ts` | 新增 | HTTP 连接池 |
 | `src/web/errors.ts` | 新增 | 错误码定义与 recovery |
+| `src/web/renderers.ts` | 新增 | Web 工具折叠/展开 TUI 渲染 helper（Phase 7） |
 | `src/web/fetch.ts` | 修改 | 集成 activity、throttler、error 处理 |
 | `src/web/search.ts` | 修改 | 集成 activity、cache、error 处理 |
 | `src/extension/commands/doctor.ts` | 新增 | 诊断检查命令 |
@@ -866,7 +980,8 @@ src/web/
 | `src/extension/commands/activity.ts` | 新增 | 交互式 TUI 面板 |
 | `src/extension/index.ts` | 修改 | 注册开发者命令 |
 | `src/shared/types.ts` | 修改 | 添加相关类型 |
-| `src/config/load-config.ts` | 修改 | 添加缓存、并发、连接池配置 |
+| `src/config/load-config.ts` | 修改 | 添加缓存、并发、连接池配置，可选添加 webTools.ui 配置 |
+| `tests/unit/web-renderers.test.ts` | 新增 | Phase 7 renderer 摘要/展开/错误/partial 测试 |
 | `tests/unit/*.test.ts` | 新增 | 各类单元测试 |
 | `tests/mocks/providers/*.ts` | 新增 | Provider mocks |
 
@@ -875,7 +990,8 @@ src/web/
 ## 八、向后兼容性
 
 - 所有新增功能默认启用，可通过配置关闭
-- 现有工具行为不变
+- 现有工具执行结果和 LLM 上下文内容不变
+- Phase 7 仅改变交互式 TUI 展示，不改变 `content` / `details` 数据结构
 - 新错误码仅在使用新功能时触发
 - 不会引入新的外部依赖（使用原生 `node:http` 和已有测试框架）
 
@@ -899,11 +1015,16 @@ src/web/
 | 连接池 | keep-alive 复用连接 | ✅ |
 | 错误码 | 包含 14 个结构化错误码 | ✅ |
 | Recovery | 每个错误码有对应的 recovery 建议 | ✅ |
+| Web 工具摘要渲染 | `web_search`、`fetch_content`、`get_search_content` 默认只显示摘要 | ✅ |
+| Web 工具展开渲染 | `Ctrl+O` 展开后可查看完整内容 | ✅ |
+| Renderer 测试 | 覆盖摘要、展开、错误、partial、多 URL/多 query 场景 | ✅ |
 
 ---
 
 ## 十、测试结果
 
 ```bash
-pnpm test  # 138 tests, 25 suites, all passed
+pnpm test:unit  # 144 tests, 26 suites, all passed
 ```
+
+Phase 7 新增 `tests/unit/web-renderers.test.ts`。

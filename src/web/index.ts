@@ -6,6 +6,14 @@ import { initializeRequestThrottler } from "./concurrency.ts";
 import { fetchContent } from "./fetch.ts";
 import { initializeConnectionPool } from "./http-pool.ts";
 import { configureWebObservability, resetWebToolStats } from "./observability.ts";
+import {
+  renderFetchContentCall,
+  renderFetchContentResult,
+  renderGetSearchContentCall,
+  renderGetSearchContentResult,
+  renderWebSearchCall,
+  renderWebSearchResult,
+} from "./renderers.ts";
 import { FetchContentParams, GetSearchContentParams, WebSearchParams } from "./schemas.ts";
 import { webSearch } from "./search.ts";
 import {
@@ -128,6 +136,16 @@ export function registerWebTools(pi: ExtensionAPI, config: ResolvedExtensionConf
     execute(_id: string, params: WebSearchInput, signal: AbortSignal) {
       return webSearch(params, config, signal).then(asToolResult);
     },
+    renderCall(args: WebSearchInput, theme: any) {
+      return renderWebSearchCall(args, theme);
+    },
+    renderResult(
+      result: AgentToolResult<any>,
+      options: { expanded: boolean; isPartial: boolean },
+      theme: any
+    ) {
+      return renderWebSearchResult(result, options, theme);
+    },
   } as any);
 
   pi.registerTool({
@@ -138,6 +156,16 @@ export function registerWebTools(pi: ExtensionAPI, config: ResolvedExtensionConf
     execute(_id: string, params: FetchContentInput, signal: AbortSignal) {
       return fetchContent(params, config, signal).then(asToolResult);
     },
+    renderCall(args: FetchContentInput, theme: any) {
+      return renderFetchContentCall(args, theme);
+    },
+    renderResult(
+      result: AgentToolResult<any>,
+      options: { expanded: boolean; isPartial: boolean },
+      theme: any
+    ) {
+      return renderFetchContentResult(result, options, theme);
+    },
   } as any);
 
   pi.registerTool({
@@ -147,6 +175,16 @@ export function registerWebTools(pi: ExtensionAPI, config: ResolvedExtensionConf
     parameters: GetSearchContentParams as any,
     execute(_id: string, params: GetSearchContentInput) {
       return asToolResult(getSearchContent(params, config.webTools.maxContentChars));
+    },
+    renderCall(args: GetSearchContentInput, theme: any) {
+      return renderGetSearchContentCall(args, theme);
+    },
+    renderResult(
+      result: AgentToolResult<any>,
+      options: { expanded: boolean; isPartial: boolean },
+      theme: any
+    ) {
+      return renderGetSearchContentResult(result, options, theme);
     },
   } as any);
 }
