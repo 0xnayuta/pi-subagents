@@ -244,7 +244,8 @@ export function recordSearchActivity(
 ): void {
   const duration = Date.now() - startTs;
 
-  // Legacy stats
+  // Legacy stats - call must happen first to increment counter
+  recordSearchCall(provider);
   if (status === "success") {
     recordSearchSuccess(provider, startTs);
   } else {
@@ -271,7 +272,8 @@ export function recordFetchActivity(
 ): void {
   const startTs = Date.now();
 
-  // Legacy stats
+  // Legacy stats - call must happen first to increment counter
+  recordFetchCall();
   if (status === "success") {
     recordFetchSuccess();
   } else {
