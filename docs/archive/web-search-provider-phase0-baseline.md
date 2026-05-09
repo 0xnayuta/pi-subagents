@@ -6,7 +6,7 @@ last_verified: 2026-05-09
 
 # Web Search Provider 迁移 Phase 0 基线报告
 
-对应计划：[`docs/guides/12-web-search-provider-migration-execution-plan.md`](../guides/12-web-search-provider-migration-execution-plan.md)
+对应计划：[`docs/guides/12-web-tool-enhancement-plan.md`](../guides/12-web-tool-enhancement-plan.md)
 
 本报告用于锁定迁移前（brave-only）的行为基线、回归命令与主要风险。
 

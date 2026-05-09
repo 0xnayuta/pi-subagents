@@ -36,6 +36,7 @@ last_verified: 2026-05-08
 9. [类型兼容说明](./issues/type-compatibility.md)
 10. [已知问题列表](./issues/known-issues.md)
 11. [发布前检查清单](./guides/release-checklist.md)
+12. [推迟合并 pi-lsp 的综合扩展计划](./guides/13-deferred-pi-lsp-merge-plan.md)
 
 ## 决策记录
 
@@ -48,8 +49,8 @@ last_verified: 2026-05-08
 
 这些文档记录简化改造过程，不作为当前代码结构的 source of truth。
 
-- [Phase 0 审计](./audits/phase-0-audit.md)
-- [Web Search Provider 迁移 Phase 0 基线报告](./audits/web-search-provider-phase0-baseline.md)
-- [简化改造实施记录](./audits/simplification-implementation-history.md)
-- [删除清单审计](./audits/deletion-audit.md)
-- [pi-subagents 简化改造参考文档](./pi-subagents-simplification-guide.md)
+- [Phase 0 审计](./archive/phase-0-audit.md)
+- [Web Search Provider 迁移 Phase 0 基线报告](./archive/web-search-provider-phase0-baseline.md)
+- [简化改造实施记录](./archive/simplification-implementation-history.md)
+- [删除清单审计](./archive/deletion-audit.md)
+- [pi-subagents 简化改造参考文档](./archive/pi-subagents-simplification-guide.md)

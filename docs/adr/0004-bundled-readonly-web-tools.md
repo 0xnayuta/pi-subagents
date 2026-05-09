@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: current
 audience: maintainer
 last_verified: 2026-05-09
 ---
