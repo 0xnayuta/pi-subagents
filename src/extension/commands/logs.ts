@@ -118,7 +118,7 @@ export function formatLogsJson(options: LogsOptions = {}): string {
 // Helpers
 // ============================================================================
 
-function formatTimestamp(ts: number): string {
+export function formatTimestamp(ts: number): string {
   const date = new Date(ts);
   return date.toTimeString().split(" ")[0]; // HH:MM:SS
 }

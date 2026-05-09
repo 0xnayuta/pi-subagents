@@ -17,3 +17,4 @@ export {
   type AgentListReport,
 } from "./list.ts";
 export { formatLogs, formatLogsJson, getRecentLogs, type LogsOptions } from "./logs.ts";
+export { createActivityPanel, type ActivityPanelOptions } from "./activity.ts";

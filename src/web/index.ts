@@ -1,7 +1,10 @@
 import type { AgentToolResult } from "@mariozechner/pi-agent-core";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import type { ResolvedExtensionConfig } from "../shared/types.ts";
+import { initializeSearchCache } from "./cache.ts";
+import { initializeRequestThrottler } from "./concurrency.ts";
 import { fetchContent } from "./fetch.ts";
+import { initializeConnectionPool } from "./http-pool.ts";
 import { configureWebObservability, resetWebToolStats } from "./observability.ts";
 import { FetchContentParams, GetSearchContentParams, WebSearchParams } from "./schemas.ts";
 import { webSearch } from "./search.ts";
@@ -38,6 +41,35 @@ export {
   type WebErrorCode,
 } from "./errors.ts";
 
+// Re-export performance optimization APIs
+export {
+  getSearchCache,
+  initializeSearchCache,
+  resetSearchCache,
+  type CacheConfig,
+  type CacheStats,
+  SearchResultCache,
+} from "./cache.ts";
+export {
+  getRequestThrottler,
+  initializeRequestThrottler,
+  resetRequestThrottler,
+  withThrottle,
+  type ConcurrencyConfig,
+  type ThrottlerStats,
+  RequestThrottler,
+  QueueFullError,
+} from "./concurrency.ts";
+export {
+  getConnectionPool,
+  initializeConnectionPool,
+  resetConnectionPool,
+  pooledFetch,
+  type ConnectionPoolConfig,
+  type PoolStats,
+  HttpConnectionPool,
+} from "./http-pool.ts";
+
 function asToolResult(details: unknown): AgentToolResult<any> {
   return {
     content: [{ type: "text", text: JSON.stringify(details, null, 2) }],
@@ -50,6 +82,11 @@ function asToolResult(details: unknown): AgentToolResult<any> {
  */
 export function registerWebTools(pi: ExtensionAPI, config: ResolvedExtensionConfig): void {
   if (!config.webTools.enabled) return;
+
+  // Initialize performance optimization modules
+  initializeSearchCache(config.webTools.cache);
+  initializeRequestThrottler(config.webTools.concurrency);
+  initializeConnectionPool(config.webTools.connectionPool);
 
   configureWebObservability(config.webTools.debug);
   setStorageLimits({

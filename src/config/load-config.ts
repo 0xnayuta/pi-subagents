@@ -23,6 +23,20 @@ export const DEFAULT_WEB_TOOLS_CONFIG: ResolvedWebToolsConfig = {
   maxStoredResults: 100,
   maxStoredContentChars: 200000,
   debug: false,
+  cache: {
+    enabled: false,
+    maxEntries: 50,
+    ttlMs: 300000,
+  },
+  concurrency: {
+    maxConcurrent: 3,
+    maxQueueSize: 10,
+  },
+  connectionPool: {
+    maxSockets: 10,
+    maxFreeSockets: 5,
+    timeout: 60000,
+  },
   openserp: {
     enabled: false,
     baseUrl: "https://api.openserp.com/search",
@@ -163,6 +177,38 @@ function normalizeWebToolsConfig(base: WebToolsConfig | undefined): ResolvedWebT
       DEFAULT_WEB_TOOLS_CONFIG.maxStoredContentChars
     ),
     debug: normalizeDebugLevel(base?.debug),
+    cache: {
+      enabled: booleanValue(base?.cache?.enabled, DEFAULT_WEB_TOOLS_CONFIG.cache.enabled),
+      maxEntries: positiveInteger(
+        base?.cache?.maxEntries,
+        DEFAULT_WEB_TOOLS_CONFIG.cache.maxEntries
+      ),
+      ttlMs: positiveInteger(base?.cache?.ttlMs, DEFAULT_WEB_TOOLS_CONFIG.cache.ttlMs),
+    },
+    concurrency: {
+      maxConcurrent: positiveInteger(
+        base?.concurrency?.maxConcurrent,
+        DEFAULT_WEB_TOOLS_CONFIG.concurrency.maxConcurrent
+      ),
+      maxQueueSize: positiveInteger(
+        base?.concurrency?.maxQueueSize,
+        DEFAULT_WEB_TOOLS_CONFIG.concurrency.maxQueueSize
+      ),
+    },
+    connectionPool: {
+      maxSockets: positiveInteger(
+        base?.connectionPool?.maxSockets,
+        DEFAULT_WEB_TOOLS_CONFIG.connectionPool.maxSockets
+      ),
+      maxFreeSockets: positiveInteger(
+        base?.connectionPool?.maxFreeSockets,
+        DEFAULT_WEB_TOOLS_CONFIG.connectionPool.maxFreeSockets
+      ),
+      timeout: positiveInteger(
+        base?.connectionPool?.timeout,
+        DEFAULT_WEB_TOOLS_CONFIG.connectionPool.timeout
+      ),
+    },
     openserp: {
       enabled: booleanValue(base?.openserp?.enabled, DEFAULT_WEB_TOOLS_CONFIG.openserp.enabled),
       baseUrl:

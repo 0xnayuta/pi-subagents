@@ -161,6 +161,23 @@ export interface ApiKeyProviderConfig {
   apiKeyEnv?: string;
 }
 
+export interface CacheConfig {
+  enabled?: boolean;
+  maxEntries?: number;
+  ttlMs?: number;
+}
+
+export interface ConcurrencyConfig {
+  maxConcurrent?: number;
+  maxQueueSize?: number;
+}
+
+export interface ConnectionPoolConfig {
+  maxSockets?: number;
+  maxFreeSockets?: number;
+  timeout?: number;
+}
+
 export interface WebToolsConfig {
   enabled?: boolean;
   provider?: WebSearchProviderName;
@@ -174,6 +191,9 @@ export interface WebToolsConfig {
   maxStoredResults?: number;
   maxStoredContentChars?: number;
   debug?: DebugLevel;
+  cache?: CacheConfig;
+  concurrency?: ConcurrencyConfig;
+  connectionPool?: ConnectionPoolConfig;
   openserp?: OpenSerpProviderConfig;
   searxng?: SearxngProviderConfig;
   tavily?: ApiKeyProviderConfig;
@@ -189,12 +209,18 @@ export interface ExtensionConfig {
 }
 
 export type ResolvedWebToolsConfig = Required<
-  Omit<WebToolsConfig, "openserp" | "searxng" | "tavily" | "serper">
+  Omit<
+    WebToolsConfig,
+    "openserp" | "searxng" | "tavily" | "serper" | "cache" | "concurrency" | "connectionPool"
+  >
 > & {
   openserp: Required<OpenSerpProviderConfig>;
   searxng: Required<SearxngProviderConfig>;
   tavily: Required<ApiKeyProviderConfig>;
   serper: Required<ApiKeyProviderConfig>;
+  cache: Required<CacheConfig>;
+  concurrency: Required<ConcurrencyConfig>;
+  connectionPool: Required<ConnectionPoolConfig>;
 };
 
 export type ResolvedExtensionConfig = Required<Omit<ExtensionConfig, "webTools">> & {

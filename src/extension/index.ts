@@ -32,6 +32,7 @@ import {
   checkSubagentDepth,
 } from "../shared/types.ts";
 import { registerWebTools } from "../web/index.ts";
+import { createActivityPanel } from "./commands/activity.ts";
 import { formatDoctorReport, runDoctorChecks } from "./commands/doctor.ts";
 import { formatAgentList, getAgentList } from "./commands/list.ts";
 import { type LogsOptions, formatLogs } from "./commands/logs.ts";
@@ -203,9 +204,14 @@ Example:
   });
 
   pi.on("session_shutdown", () => {
-    // Cleanup state
+    // Cleanup session state
     state.lastUiContext = null;
     state.currentSessionId = null;
+
+    // Cleanup web tool resources (optional - uncomment if needed)
+    // import("../web/observability.ts").then(({ clearActivityLog }) => clearActivityLog());
+    // import("../web/cache.ts").then(({ resetSearchCache }) => resetSearchCache());
+    // import("../web/concurrency.ts").then(({ resetRequestThrottler }) => resetRequestThrottler());
   });
 }
 
@@ -273,6 +279,37 @@ function registerDeveloperCommands(pi: ExtensionAPI): void {
         ctx.ui.notify("Activity logs printed to console", "info");
       } catch (error) {
         ctx.ui.notify(`Logs failed: ${error instanceof Error ? error.message : error}`, "error");
+      }
+    },
+  });
+
+  // /subagents activity - Show interactive activity panel (TUI)
+  pi.registerCommand("activity", {
+    description: "Show interactive activity panel (TUI)",
+    handler: async (_args: string, ctx) => {
+      try {
+        const panel = createActivityPanel({ maxEntries: 15, autoRefresh: true });
+
+        await ctx.ui.custom<void>((tui, _theme, _keybindings, done) => {
+          panel.setOnClose(() => done());
+
+          return {
+            render: (width: number) => panel.render(width),
+            invalidate: () => panel.invalidate(),
+            handleInput: (data: string) => {
+              panel.handleInput(data);
+              tui.requestRender();
+            },
+            dispose: () => panel.dispose(),
+          };
+        });
+
+        ctx.ui.notify("Activity panel closed", "info");
+      } catch (error) {
+        ctx.ui.notify(
+          `Activity panel error: ${error instanceof Error ? error.message : error}`,
+          "error"
+        );
       }
     },
   });
