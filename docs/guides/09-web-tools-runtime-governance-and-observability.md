@@ -6,108 +6,121 @@ last_verified: 2026-05-08
 
 # Web Tools 运行时治理与可观测性
 
-本文说明内置 web tools（`web_search` / `fetch_content` / `get_search_content`）在 P2 引入的运行时治理策略与轻量可观测机制。
+本文说明内置 web tools 在 P2 后的运行时治理策略与最小可观测能力。
 
-目标：
+适用范围：
 
-- 控制内存占用与单条结果大小
-- 强化 SSRF 防护细节
-- 提供最小调试能力（默认关闭）
-
----
-
-## 1. 内存与存储治理
-
-相关代码：`src/web/storage.ts`
-
-### 1.1 条目上限（FIFO 淘汰）
-
-配置：`webTools.maxStoredResults`（默认 `100`）
-
-- 每次 `storeResult` 后会检查缓存条目数
-- 超限时按插入顺序淘汰最旧条目（FIFO）
-- 会话恢复（`restoreResultsFromSession`）同样应用该限制
-
-效果：
-
-- 防止长会话无限增长导致内存膨胀
-
-### 1.2 单条内容上限（存储阶段截断）
-
-配置：`webTools.maxStoredContentChars`（默认 `200000`）
-
-- 写入缓存前会对 `content` 做存储级截断
-- 截断后 `truncated` 标记会被保留为 `true`
-- 对 fetch/search（含 search result 内嵌 content）都生效
-
-效果：
-
-- 防止极端页面内容导致单条记录过大
-
-### 1.3 与返回级截断的关系
-
-- 存储级：`maxStoredContentChars`
-- 响应级：`maxContentChars`
-
-即使存储级未触发，`get_search_content` 与 tool 直接返回仍会受 `maxContentChars` 限制。
+- `web_search`
+- `fetch_content`
+- `get_search_content`
 
 ---
 
-## 2. SSRF 防护加强
+## 1. 存储治理（Storage Governance）
 
-相关代码：`src/web/security.ts`
+### 1.1 条目数量上限
 
-### 2.1 主机名拦截
+配置项：`webTools.maxStoredResults`（默认 `100`）
 
-额外拒绝：
+行为：
 
-- `localhost` / `*.localhost`
-- `*.local`
-- `*.internal`
+- 每次 `storeResult` 写入后执行容量检查
+- 超出上限时按 FIFO 淘汰最早条目
+- 会话恢复（`restoreResultsFromSession`）时同样应用上限
 
-### 2.2 IPv6 细节
+影响：
 
-- 支持 bracket host 规范化（如 `[::1]`）后再进行 IP 判定
-- 拒绝 loopback/link-local/ULA
-- 处理 IPv4-mapped IPv6（`::ffff:x.x.x.x`）并复用 IPv4 私网判定
+- 限制长会话内存增长
+- 极长会话下旧 `responseId` 可能被淘汰
 
-### 2.3 重定向链复验
+### 1.2 单条内容大小上限
 
-- 每一次 30x 跳转都重新执行 URL 安全校验
-- 避免通过中间跳转绕过限制
+配置项：`webTools.maxStoredContentChars`（默认 `200000`）
 
----
+行为：
 
-## 3. 轻量可观测性（会话内）
+- 在存储阶段裁剪过长 `content`
+- 被裁剪条目会标记 `truncated: true`
+- fetch/search 内嵌 content 都适用
 
-相关代码：`src/web/observability.ts`
+影响：
 
-### 3.1 开关
+- 降低单条异常页面占用过大内存风险
+- `get_search_content` 读取到的是治理后内容
 
-配置：`webTools.debug`（默认 `false`）
+### 1.3 与输出截断的关系
 
-- `false`：不输出调试日志
-- `true`：输出最小 debug 日志（`[web-tools] ...`）
+- 存储治理：控制“存多少”（`maxStoredContentChars`）
+- 输出治理：控制“返回多少”（`maxContentChars`）
 
-### 3.2 统计维度
+二者独立生效：
 
-当前在内存中维护：
-
-- `search`：calls/success/failure
-- `fetch`：calls/success/failure
-- `providers`：按 provider 统计 calls/success/failure/latencyMsTotal
-- `errorCodes`：按错误码计数
-
-### 3.3 生命周期
-
-- `session_start`：重置统计
-- `session_shutdown`：重置统计
-
-> 统计为会话内临时状态，不落盘。
+1. 先存储治理（可能截断并标记）
+2. 再响应输出治理（按 tool 输出上限再次截断）
 
 ---
 
-## 4. 配置示例
+## 2. SSRF 与地址安全增强
+
+P2 增强点：
+
+- 支持 bracket IPv6 host 的规范化检查（如 `[::1]`）
+- 拒绝 `localhost`/`.localhost`、`.local`、`.internal`
+- 重定向链每一跳都重新执行 URL 安全校验
+
+仍保持：
+
+- 仅允许 `http:` / `https:`
+- 拒绝私网、loopback、link-local 地址
+
+---
+
+## 3. 可观测性（Minimal Observability）
+
+### 3.1 调试日志开关
+
+配置项：`webTools.debug`（默认 `false`）
+
+行为：
+
+- `false`：不输出 web tools 调试日志
+- `true`：输出前缀为 `[web-tools]` 的轻量日志
+
+日志目标：
+
+- 方便维护者排障
+- 默认不污染用户常规输出
+
+### 3.2 会话内统计项
+
+当前统计维度（会话内内存统计）：
+
+- search/fetch：调用次数、成功数、失败数
+- provider（当前主要是 brave）：调用次数、成功数、失败数、累计延迟
+- error code：各错误码计数
+
+说明：
+
+- 统计在 `session_start` / `session_shutdown` 会重置
+- 统计不做跨会话持久化
+
+---
+
+## 4. Abort/Timeout 一致性模型
+
+统一策略：
+
+- 使用 `AbortSignal.timeout(...)` 生成超时信号
+- 使用 `AbortSignal.any([...])` 合并父 signal 与超时 signal
+
+收益：
+
+- `web_search` 与 `fetch_content` 的取消/超时语义一致
+- 错误分类更稳定（统一映射为 `SUBAGENT_TIMEOUT`）
+
+---
+
+## 5. 推荐配置模板
 
 ```json
 {
@@ -129,9 +142,13 @@ last_verified: 2026-05-08
 
 ---
 
-## 5. 维护建议
+## 6. 运维建议
 
-1. 优先调整 `maxStoredResults` 与 `maxStoredContentChars`，再考虑改代码
-2. 出现抓取异常时先短期开启 `debug`，问题定位后关闭
-3. 新增 provider 前，先复用当前 observability 计数维度
-4. 不要把调试日志变为默认输出，保持主路径简洁
+- 若出现 `responseId` 频繁失效：
+  - 提高 `maxStoredResults`
+- 若内存压力偏高：
+  - 降低 `maxStoredResults` 与 `maxStoredContentChars`
+- 若排障需要：
+  - 临时启用 `webTools.debug: true`，问题定位后关闭
+- 若超时较多：
+  - 先减小查询规模，再视情况上调 `timeoutMs`
