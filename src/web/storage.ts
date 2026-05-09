@@ -231,7 +231,7 @@ function formatFetchSelectorHint(stored: ExtractedContent[]): string {
 function formatSearchSelectorHint(stored: QueryResultData[]): string {
   const preview = stored
     .slice(0, 5)
-    .map((item, i) => `${i}: \"${item.query}\"`)
+    .map((item, i) => `${i}: "${item.query}"`)
     .join("; ");
   return `Use query or queryIndex. Available: ${preview}${stored.length > 5 ? "; ..." : ""}`;
 }
@@ -259,7 +259,7 @@ function selectFetchResult(
     if (!matched) {
       return error(
         "NOT_FOUND",
-        `URL \"${params.url}\" not found. ${formatFetchSelectorHint(stored)}`
+        `URL "${params.url}" not found. ${formatFetchSelectorHint(stored)}`
       );
     }
     return matched;
@@ -291,7 +291,7 @@ function selectSearchResult(
     if (!matched) {
       return error(
         "NOT_FOUND",
-        `Query \"${params.query}\" not found. ${formatSearchSelectorHint(stored)}`
+        `Query "${params.query}" not found. ${formatSearchSelectorHint(stored)}`
       );
     }
     return matched;

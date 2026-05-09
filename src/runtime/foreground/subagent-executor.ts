@@ -10,6 +10,7 @@ import type { AgentToolResult } from "@earendil-works/pi-agent-core";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { AgentConfig, AgentScope } from "../../agents/agents.ts";
 import {
+  checkSubagentDepth,
   DEFAULT_MAX_OUTPUT,
   type Details,
   MVP_ERROR_CODES,
@@ -20,9 +21,8 @@ import {
   type ResolvedExtensionConfig,
   type SingleResult,
   type SubagentState,
-  type Usage,
-  checkSubagentDepth,
   truncateOutput,
+  type Usage,
 } from "../../shared/types.ts";
 import { buildSubagentChildArgs, cleanupTempDir } from "../shared/pi-args.ts";
 import { buildChildPrompt } from "../shared/subagent-prompt-runtime.ts";

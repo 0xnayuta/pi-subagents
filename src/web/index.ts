@@ -1,5 +1,5 @@
 import type { AgentToolResult } from "@earendil-works/pi-agent-core";
-import { type ExtensionAPI, defineTool } from "@earendil-works/pi-coding-agent";
+import { defineTool, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import type { ResolvedExtensionConfig } from "../shared/types.ts";
 import { initializeSearchCache } from "./cache.ts";
 import { initializeRequestThrottler } from "./concurrency.ts";
@@ -17,66 +17,65 @@ import {
 import { FetchContentParams, GetSearchContentParams, WebSearchParams } from "./schemas.ts";
 import { webSearch } from "./search.ts";
 import {
-  WEB_RESULTS_CUSTOM_TYPE,
   clearResults,
   getSearchContent,
   restoreResultsFromSession,
   setSessionResultAppender,
   setStorageLimits,
+  WEB_RESULTS_CUSTOM_TYPE,
 } from "./storage.ts";
 import type { FetchContentInput, GetSearchContentInput, WebSearchInput } from "./types.ts";
 
-// Re-export observability and error APIs for external access
+// Re-export performance optimization APIs
 export {
-  getActivityLog,
-  getDebugLevel,
-  getWebToolStats,
-  recordFetchActivity,
-  recordSearchActivity,
-  type ActivityEntry,
-  type ProviderStats,
-  type WebToolStats,
-} from "./observability.ts";
+  type CacheConfig,
+  type CacheStats,
+  getSearchCache,
+  initializeSearchCache,
+  resetSearchCache,
+  SearchResultCache,
+} from "./cache.ts";
+export {
+  type ConcurrencyConfig,
+  getRequestThrottler,
+  initializeRequestThrottler,
+  QueueFullError,
+  RequestThrottler,
+  resetRequestThrottler,
+  type ThrottlerStats,
+  withThrottle,
+} from "./concurrency.ts";
 export {
   createWebError,
   formatWebError,
   getErrorSummary,
   mapHttpStatusToError,
   mapNetworkErrorToWebError,
-  WEB_ERROR_CODES,
   type RecoverySuggestion,
+  WEB_ERROR_CODES,
   type WebError,
   type WebErrorCode,
 } from "./errors.ts";
-
-// Re-export performance optimization APIs
 export {
-  getSearchCache,
-  initializeSearchCache,
-  resetSearchCache,
-  type CacheConfig,
-  type CacheStats,
-  SearchResultCache,
-} from "./cache.ts";
-export {
-  getRequestThrottler,
-  initializeRequestThrottler,
-  resetRequestThrottler,
-  withThrottle,
-  type ConcurrencyConfig,
-  type ThrottlerStats,
-  RequestThrottler,
-  QueueFullError,
-} from "./concurrency.ts";
-export {
-  getConnectionPool,
-  initializeConnectionPool,
-  resetConnectionPool,
-  pooledFetch,
   type ConnectionPoolConfig,
-  type PoolStats,
+  getConnectionPool,
   HttpConnectionPool,
+  initializeConnectionPool,
+  type PoolStats,
+  pooledFetch,
+  resetConnectionPool,
 } from "./http-pool.ts";
+// Re-export observability and error APIs for external access
+export {
+  type ActivityEntry,
+  getActivityLog,
+  getDebugLevel,
+  getWebToolStats,
+  type ProviderStats,
+  recordFetchActivity,
+  recordSearchActivity,
+  type WebToolStats,
+} from "./observability.ts";
 
 function asToolResult(details: unknown): AgentToolResult<any> {
   return {

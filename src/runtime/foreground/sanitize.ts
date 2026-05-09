@@ -10,11 +10,11 @@ const SENSITIVE_PATTERNS: Array<{ pattern: RegExp | string; replacement: string 
   // API keys and tokens
   {
     pattern:
-      /(?:api[_-]?key|api[_-]?token|auth[_-]?token|access[_-]?token|secret[_-]?key)\s*[:=]\s*["']?([a-zA-Z0-9_\-]{20,})["']?/gi,
+      /(?:api[_-]?key|api[_-]?token|auth[_-]?token|access[_-]?token|secret[_-]?key)\s*[:=]\s*["']?([a-zA-Z0-9_-]{20,})["']?/gi,
     replacement: "$1: [REDACTED]",
   },
   // Bearer tokens
-  { pattern: /Bearer\s+[a-zA-Z0-9_\-\.]+/gi, replacement: "Bearer [REDACTED]" },
+  { pattern: /Bearer\s+[a-zA-Z0-9_\-.]+/gi, replacement: "Bearer [REDACTED]" },
   // Authorization headers
   { pattern: /Authorization\s*:\s*[^\s\n]+/gi, replacement: "Authorization: [REDACTED]" },
   // AWS keys
@@ -28,19 +28,19 @@ const SENSITIVE_PATTERNS: Array<{ pattern: RegExp | string; replacement: string 
   // Environment variables with secrets
   {
     pattern:
-      /(?:STRIPE[_-]?KEY|OPENAI[_-]?API[_-]?KEY|ANTHROPIC[_-]?API[_-]?KEY)\s*=\s*["']?[A-Za-z0-9_\-]{20,}["']?/gi,
+      /(?:STRIPE[_-]?KEY|OPENAI[_-]?API[_-]?KEY|ANTHROPIC[_-]?API[_-]?KEY)\s*=\s*["']?[A-Za-z0-9_-]{20,}["']?/gi,
     replacement: "$1=[REDACTED]",
   },
   // Full .env dumps
   {
-    pattern: /(?:^|\n)export\s+\w+=(?:['"]?)[A-Za-z0-9_\-]{20,}(?:['"]?)/gm,
+    pattern: /(?:^|\n)export\s+\w+=(?:['"]?)[A-Za-z0-9_-]{20,}(?:['"]?)/gm,
     replacement: "[ENV_VAR_REDACTED]",
   },
   // Stack traces with file paths - keep the error message, remove paths
   { pattern: /\s+at\s+.+\(([^)]+)\)/g, replacement: " at [REDACTED_PATH]" },
   // Common secret patterns in URLs
   {
-    pattern: /[?&](?:api[_-]?key|token|secret|auth)=[A-Za-z0-9_\-]{10,}/gi,
+    pattern: /[?&](?:api[_-]?key|token|secret|auth)=[A-Za-z0-9_-]{10,}/gi,
     replacement: "[REDACTED_PARAM]",
   },
 ];

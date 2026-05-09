@@ -1,6 +1,6 @@
 import type { ResolvedExtensionConfig } from "../shared/types.ts";
 import { isAbortLikeError } from "./abort.ts";
-import { WEB_ERROR_CODES, mapHttpStatusToError, mapNetworkErrorToWebError } from "./errors.ts";
+import { mapHttpStatusToError, mapNetworkErrorToWebError, WEB_ERROR_CODES } from "./errors.ts";
 import { truncateContent } from "./extract.ts";
 import { fetchUrlContent } from "./fetch.ts";
 import { recordSearchActivity, webDebugLog } from "./observability.ts";

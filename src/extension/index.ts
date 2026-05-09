@@ -15,31 +15,31 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { AgentToolResult } from "@earendil-works/pi-agent-core";
 import {
+  defineTool,
   type ExtensionAPI,
   type ExtensionContext,
-  defineTool,
 } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
 import { discoverAgents } from "../agents/agents.ts";
 import { loadConfig, mergeConfig } from "../config/load-config.ts";
 import {
-  type SubagentParamsLike,
   createSubagentExecutor,
+  type SubagentParamsLike,
 } from "../runtime/foreground/subagent-executor.ts";
 import { resolveCurrentSessionId } from "../shared/session-identity.ts";
 import {
+  checkSubagentDepth,
   type Details,
   MVP_ERROR_CODES,
   PI_SUBAGENT_CHILD,
   RESULTS_DIR,
   type SubagentState,
-  checkSubagentDepth,
 } from "../shared/types.ts";
 import { registerWebTools } from "../web/index.ts";
 import { createActivityPanel } from "./commands/activity.ts";
 import { formatDoctorReport, runDoctorChecks } from "./commands/doctor.ts";
 import { formatAgentList, getAgentList } from "./commands/list.ts";
-import { type LogsOptions, formatLogs } from "./commands/logs.ts";
+import { formatLogs, type LogsOptions } from "./commands/logs.ts";
 import { SubagentParams } from "./schemas.ts";
 
 /**
