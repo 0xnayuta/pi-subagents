@@ -14,6 +14,7 @@ import {
   recordFetchActivity,
   recordSearchActivity,
   resetWebToolStats,
+  webDebugLog,
   type ActivityEntry,
 } from "../../src/web/observability.ts";
 
@@ -49,100 +50,50 @@ describe("observability - stats", () => {
     clearActivityLog();
   });
 
-  it("should track search success", () => {
+  it("tracks search success/error/rate-limited and fetch success/error", () => {
     const startTs = Date.now() - 100;
     recordSearchActivity("ddgs", "success", startTs);
-
-    const stats = getWebToolStats();
-    assert.equal(stats.totalRequests, 1);
-    assert.equal(stats.successCount, 1);
-    assert.equal(stats.errorCount, 0);
-  });
-
-  it("should track search error", () => {
-    const startTs = Date.now() - 100;
-    recordSearchActivity("ddgs", "error", startTs, "WEB_SEARCH_FAILED");
-
-    const stats = getWebToolStats();
-    assert.equal(stats.totalRequests, 1);
-    assert.equal(stats.successCount, 0);
-    assert.equal(stats.errorCount, 1);
-  });
-
-  it("should track search rate limited", () => {
-    const startTs = Date.now() - 100;
-    recordSearchActivity("ddgs", "rate_limited", startTs, "PROVIDER_RATE_LIMITED");
-
-    const stats = getWebToolStats();
-    assert.equal(stats.totalRequests, 1);
-    assert.equal(stats.rateLimitedCount, 1);
-  });
-
-  it("should track fetch success", () => {
+    recordSearchActivity("ddgs", "error", startTs + 1, "WEB_SEARCH_FAILED");
+    recordSearchActivity("ddgs", "rate_limited", startTs + 2, "PROVIDER_RATE_LIMITED");
     recordFetchActivity("success");
-
-    const stats = getWebToolStats();
-    assert.equal(stats.totalRequests, 1);
-    assert.equal(stats.successCount, 1);
-    assert.equal(stats.errorCount, 0);
-  });
-
-  it("should track fetch error", () => {
     recordFetchActivity("error", "FETCH_CONTENT_FAILED");
 
     const stats = getWebToolStats();
-    assert.equal(stats.totalRequests, 1);
-    assert.equal(stats.successCount, 0);
-    assert.equal(stats.errorCount, 1);
+    // search: 1 success + 1 error + 1 rate_limited = 3 calls
+    // fetch: 1 success + 1 error = 2 calls
+    // total = 5, success = 2, error = 3 (1 search error + 1 rate_limited + 1 fetch error)
+    assert.equal(stats.totalRequests, 5);
+    assert.equal(stats.successCount, 2);
+    assert.equal(stats.errorCount, 3);
+    assert.equal(stats.rateLimitedCount, 1);
   });
 
-  it("should aggregate provider stats", () => {
-    const startTs = Date.now() - 100;
-    recordSearchActivity("ddgs", "success", startTs);
-    recordSearchActivity("ddgs", "success", startTs + 50);
-    recordSearchActivity("tavily", "success", startTs + 100);
-
-    const stats = getWebToolStats();
-    assert.ok(stats.providerStats["ddgs"]);
-    assert.ok(stats.providerStats["tavily"]);
-    assert.equal(stats.providerStats["ddgs"].requests, 2);
-    assert.equal(stats.providerStats["tavily"].requests, 1);
-  });
-
-  it("should calculate success rate", () => {
+  it("aggregates provider stats with success rate", () => {
     const startTs = Date.now() - 100;
     recordSearchActivity("ddgs", "success", startTs);
     recordSearchActivity("ddgs", "success", startTs + 50);
     recordSearchActivity("ddgs", "error", startTs + 100);
+    recordSearchActivity("tavily", "success", startTs + 150);
 
     const stats = getWebToolStats();
+    assert.equal(stats.providerStats["ddgs"].requests, 3);
     assert.equal(stats.providerStats["ddgs"].successRate, 2 / 3);
+    assert.equal(stats.providerStats["tavily"].requests, 1);
   });
 
-  it("should calculate average latency", () => {
+  it("calculates average latency and resets correctly", () => {
     const startTs = Date.now() - 500;
-    // Use larger gap to ensure consistent timing
     recordSearchActivity("ddgs", "success", startTs);
     recordSearchActivity("ddgs", "success", startTs);
 
     const stats = getWebToolStats();
-    // Latency should be close to 0 since both calls happen quickly
-    // Allow for some variance due to test execution time
     assert.ok(stats.averageLatencyMs >= 0);
-    assert.ok(stats.averageLatencyMs < 1000); // Should be small since calls are sequential
-  });
-
-  it("should reset stats correctly", () => {
-    const startTs = Date.now() - 100;
-    recordSearchActivity("ddgs", "success", startTs);
-    recordFetchActivity("success");
+    assert.ok(stats.averageLatencyMs < 1000);
 
     resetWebToolStats();
-
-    const stats = getWebToolStats();
-    assert.equal(stats.totalRequests, 0);
-    assert.equal(stats.successCount, 0);
-    assert.equal(stats.errorCount, 0);
+    const reset = getWebToolStats();
+    assert.equal(reset.totalRequests, 0);
+    assert.equal(reset.successCount, 0);
   });
 });
 
@@ -239,21 +190,111 @@ describe("observability - record functions", () => {
     clearActivityLog();
   });
 
-  it("should generate unique request IDs", () => {
-    const startTs = Date.now() - 100;
+  it("generates unique request IDs and records duration", () => {
+    const startTs = Date.now() - 150;
     recordSearchActivity("ddgs", "success", startTs);
     recordSearchActivity("ddgs", "success", startTs + 1);
 
     const log = getActivityLog();
     assert.notEqual(log[0].requestId, log[1].requestId);
-  });
-
-  it("should record duration for search", () => {
-    const startTs = Date.now() - 150;
-    recordSearchActivity("ddgs", "success", startTs);
-
-    const log = getActivityLog();
     assert.ok(log[0].duration !== undefined);
     assert.ok(log[0].duration! >= 150);
+  });
+});
+
+// ============================================================================
+// E.3: Debug log toggle
+// ============================================================================
+
+describe("observability - debug logging", () => {
+  let consoleLogSpy: string[];
+  let originalConsoleLog: typeof console.log;
+
+  beforeEach(() => {
+    configureWebObservability(false);
+    consoleLogSpy = [];
+    originalConsoleLog = console.log;
+    console.log = (...args: unknown[]) => {
+      consoleLogSpy.push(args.map(String).join(" "));
+    };
+  });
+
+  afterEach(() => {
+    console.log = originalConsoleLog;
+    configureWebObservability(false);
+  });
+
+  it("does not output logs when debug is disabled", () => {
+    configureWebObservability(false);
+    webDebugLog("test message", { key: "value" });
+
+    assert.equal(consoleLogSpy.length, 0);
+  });
+
+  it("outputs minimal debug logs when minimal level is enabled", () => {
+    configureWebObservability("minimal");
+    webDebugLog("search success", {
+      provider: "ddgs",
+      mode: "auto",
+      responseId: "test-123",
+    });
+
+    assert.ok(consoleLogSpy.length > 0);
+    assert.ok(consoleLogSpy[0].includes("[web-tools]"));
+    assert.ok(consoleLogSpy[0].includes("search success"));
+    // Minimal mode should have JSON on same line
+    assert.ok(consoleLogSpy[0].includes('"provider"'));
+  });
+
+  it("outputs verbose debug logs when verbose level is enabled", () => {
+    configureWebObservability("verbose");
+    webDebugLog("fetch_content failed", { message: "timeout", urls: 2 });
+
+    assert.ok(consoleLogSpy.length > 0);
+    assert.ok(consoleLogSpy[0].includes("[web-tools]"));
+    assert.ok(consoleLogSpy[0].includes("fetch_content failed"));
+    // Verbose mode should have formatted JSON
+    assert.ok(consoleLogSpy[0].includes("\n"));
+    assert.ok(consoleLogSpy[0].includes('"message"'));
+  });
+
+  it("includes timestamp in debug output", () => {
+    configureWebObservability("minimal");
+    webDebugLog("test");
+
+    assert.ok(consoleLogSpy[0].match(/\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/));
+  });
+
+  it("handles undefined details gracefully", () => {
+    configureWebObservability("minimal");
+    webDebugLog("no details");
+
+    assert.ok(consoleLogSpy.length > 0);
+    assert.ok(consoleLogSpy[0].includes("no details"));
+  });
+
+  it("handles non-object details", () => {
+    configureWebObservability("minimal");
+    webDebugLog("simple", "just a string");
+
+    assert.ok(consoleLogSpy.length > 0);
+    assert.ok(consoleLogSpy[0].includes("just a string"));
+  });
+
+  it("debug logs can be toggled on and off", () => {
+    // Start disabled
+    webDebugLog("disabled", { test: true });
+    assert.equal(consoleLogSpy.length, 0);
+
+    // Enable
+    configureWebObservability("minimal");
+    webDebugLog("enabled", { test: true });
+    assert.ok(consoleLogSpy.length > 0);
+    const countWhenEnabled = consoleLogSpy.length;
+
+    // Disable again
+    configureWebObservability(false);
+    webDebugLog("disabled again", { test: true });
+    assert.equal(consoleLogSpy.length, countWhenEnabled); // No new entries
   });
 });

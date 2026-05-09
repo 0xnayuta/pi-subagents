@@ -101,19 +101,19 @@ last_verified: 2026-05-09
 
 ## D. 安全与边界（必过）
 
-- [ ] **协议限制**
+- [x] **协议限制**
   - 执行：`fetch_content({ url: "file:///etc/passwd" })`
   - 期望：拒绝，非 HTTP/HTTPS 返回结构化错误
 
-- [ ] **私网/本地域名限制**
+- [x] **私网/本地域名限制**
   - 执行：`fetch_content({ url: "http://localhost:3000" })`
   - 期望：拒绝
 
-- [ ] **IPv6 loopback 限制**
+- [x] **IPv6 loopback 限制**
   - 执行：`fetch_content({ url: "http://[::1]/" })`
   - 期望：拒绝
 
-- [ ] **内容类型限制**
+- [x] **内容类型限制**
   - 执行：请求非文本资源
   - 期望：拒绝并返回结构化错误
 
@@ -121,15 +121,15 @@ last_verified: 2026-05-09
 
 ## E. 治理与可观测（推荐）
 
-- [ ] **存储条目上限生效**
+- [x] **存储条目上限生效**
   - 前置：`webTools.maxStoredResults` 设小值（如 2）
   - 期望：旧 `responseId` 被 FIFO 淘汰
 
-- [ ] **单条存储上限生效**
+- [x] **单条存储上限生效**
   - 前置：`webTools.maxStoredContentChars` 设小值
   - 期望：存储内容被截断并标记 `truncated`
 
-- [ ] **debug 日志开关生效**
+- [x] **debug 日志开关生效**
   - 前置：`webTools.debug = true`
   - 期望：出现 `[web-tools]` 调试日志，含 `provider` / `mode` / `responseId` 字段；关闭后不再输出
 

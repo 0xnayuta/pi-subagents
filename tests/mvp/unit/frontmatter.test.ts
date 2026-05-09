@@ -57,36 +57,15 @@ describe("MVP Simple Frontmatter Parsing", () => {
 });
 
 describe("MVP Removed Frontmatter Features", () => {
-	it("does not parse 'package' frontmatter", () => {
-		const dir = tempAgent("pkg-agent", [
-			"name: pkg-agent",
-			"package: code-analysis",
-			"description: Fast recon",
-		].join("\n"));
-		const result = discoverAgents(dir, "project");
-		assert.equal(result.agents.find((a) => a.name === "code-analysis.pkg-agent"), undefined);
-	});
+	it("does not parse 'package', 'inheritSkills', 'defaultContext' frontmatter", () => {
+		const pkgDir = tempAgent("pkg-agent", "name: pkg-agent\npackage: code-analysis\ndescription: Fast recon");
+		assert.equal(discoverAgents(pkgDir, "project").agents.find((a) => a.name === "code-analysis.pkg-agent"), undefined);
 
-	it("does not parse 'inheritSkills' frontmatter", () => {
-		const dir = tempAgent("skill-agent", [
-			"name: skill-agent",
-			"description: Worker",
-			"inheritSkills: true",
-		].join("\n"));
-		const result = discoverAgents(dir, "project");
-		const agent = result.agents.find((a) => a.name === "skill-agent");
-		assert.ok(agent);
-		assert.equal((agent as any).inheritSkills, undefined);
-	});
+		const skillDir = tempAgent("skill-agent", "name: skill-agent\ndescription: Worker\ninheritSkills: true");
+		assert.equal((discoverAgents(skillDir, "project").agents.find((a) => a.name === "skill-agent") as any)?.inheritSkills, undefined);
 
-	it("does not parse 'defaultContext' frontmatter", () => {
-		const dir = tempAgent("ctx-agent", [
-			"name: ctx-agent",
-			"description: Delegate",
-			"defaultContext: fork",
-		].join("\n"));
-		const result = discoverAgents(dir, "project");
-		assert.equal(result.agents.find((a) => a.name === "ctx-agent")?.defaultContext, undefined);
+		const ctxDir = tempAgent("ctx-agent", "name: ctx-agent\ndescription: Delegate\ndefaultContext: fork");
+		assert.equal(discoverAgents(ctxDir, "project").agents.find((a) => a.name === "ctx-agent")?.defaultContext, undefined);
 	});
 });
 

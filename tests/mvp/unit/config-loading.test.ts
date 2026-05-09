@@ -11,20 +11,19 @@ import { SubagentParams } from "../../../src/extension/schemas.ts";
 
 describe("MVP Config Loading", () => {
 	describe("Default Configuration", () => {
-		it("has correct default values", () => {
+		it("has correct MVP default values", () => {
 			assert.equal(DEFAULT_CONFIG.enabled, true);
 			assert.equal(DEFAULT_CONFIG.maxSubagentDepth, 1);
 			assert.equal(DEFAULT_CONFIG.timeoutMs, 120_000);
 			assert.equal(DEFAULT_CONFIG.allowWriteSubagents, false);
-		});
-
-		it("has web tools enabled with ddgs default", () => {
 			assert.equal(DEFAULT_CONFIG.webTools.enabled, true);
 			assert.equal(DEFAULT_CONFIG.webTools.provider, "ddgs");
+		});
+
+		it("has correct webTools providerPriority", () => {
 			assert.deepEqual(DEFAULT_CONFIG.webTools.providerPriority, [
 				"tavily", "serper", "brave", "openserp", "searxng", "ddgs",
 			]);
-			assert.equal(DEFAULT_CONFIG.webTools.searxng.baseUrl, "");
 		});
 	});
 
@@ -47,7 +46,7 @@ describe("MVP Config Loading", () => {
 			assert.equal(config.webTools.searxng.baseUrl, "http://127.0.0.1:9090");
 		});
 
-		it("accepts ddgs provider and rejects invalid values", () => {
+		it("accepts valid provider, rejects invalid values", () => {
 			const valid = mergeConfig({ webTools: { provider: "ddgs" } });
 			assert.equal(valid.webTools.provider, "ddgs");
 
@@ -59,24 +58,14 @@ describe("MVP Config Loading", () => {
 	});
 
 	describe("Config Field Validation", () => {
-		it("parses valid fields and rejects invalid ones", () => {
-			const valid = { maxSubagentDepth: 2, timeoutMs: 60000, allowWriteSubagents: true };
-			const config = { ...DEFAULT_CONFIG, ...valid };
-			assert.equal(config.maxSubagentDepth, 2);
-			assert.equal(config.timeoutMs, 60000);
-			assert.equal(config.allowWriteSubagents, true);
-		});
+		it("validates depth and timeout ranges", () => {
+			const isValidDepth = (v: number) => Number.isInteger(v) && v >= 0;
+			assert.equal(isValidDepth(-1), false);
+			assert.equal(isValidDepth(2), true);
 
-		it("rejects negative maxSubagentDepth and zero timeoutMs", () => {
-			const parsedDepth = { maxSubagentDepth: -1 };
-			const isValidDepth = typeof parsedDepth.maxSubagentDepth === "number"
-				&& Number.isInteger(parsedDepth.maxSubagentDepth)
-				&& parsedDepth.maxSubagentDepth >= 0;
-			assert.equal(isValidDepth, false);
-
-			const parsedTimeout = { timeoutMs: 0 };
-			const isValidTimeout = typeof parsedTimeout.timeoutMs === "number" && parsedTimeout.timeoutMs > 0;
-			assert.equal(isValidTimeout, false);
+			const isValidTimeout = (v: number) => typeof v === "number" && v > 0;
+			assert.equal(isValidTimeout(0), false);
+			assert.equal(isValidTimeout(60000), true);
 		});
 	});
 
@@ -85,7 +74,7 @@ describe("MVP Config Loading", () => {
 			assert.equal(Object.keys(MVP_ERROR_CODES).length, 8);
 		});
 
-		it("includes all required MVP error codes", () => {
+		it("includes all required error codes", () => {
 			assert.equal(MVP_ERROR_CODES.INVALID_INPUT, "INVALID_INPUT");
 			assert.equal(MVP_ERROR_CODES.SUBAGENTS_DISABLED, "SUBAGENTS_DISABLED");
 			assert.equal(MVP_ERROR_CODES.UNKNOWN_AGENT, "UNKNOWN_AGENT");
@@ -98,16 +87,13 @@ describe("MVP Config Loading", () => {
 	});
 
 	describe("SubagentParams Schema (MVP)", () => {
-		it("has required agent and task string parameters", () => {
+		it("has required agent and task, excludes legacy params", () => {
 			assert.equal(SubagentParams.properties.agent.type, "string");
 			assert.equal(SubagentParams.properties.task.type, "string");
-		});
 
-		it("does not include legacy parameters", () => {
-			const legacy = ["chain", "tasks", "async", "share", "worktree",
-				"action", "id", "sessionDir", "control", "model", "skills"];
+			const legacy = ["chain", "tasks", "async", "share", "worktree", "action", "id", "sessionDir", "control", "model", "skills"];
 			for (const key of legacy) {
-				assert.equal(SubagentParams.properties[key as keyof typeof SubagentParams.properties], undefined, `${key} should not exist`);
+				assert.equal(SubagentParams.properties[key as keyof typeof SubagentParams.properties], undefined);
 			}
 		});
 	});

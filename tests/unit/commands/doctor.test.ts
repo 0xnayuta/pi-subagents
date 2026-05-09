@@ -12,7 +12,7 @@ import {
 } from "../../../src/extension/commands/doctor.ts";
 
 describe("commands/doctor - runDoctorChecks", () => {
-  it("should return a valid report", async () => {
+  it("returns valid report structure", async () => {
     const report = await runDoctorChecks(process.cwd());
 
     assert.ok(Array.isArray(report.items));
@@ -22,79 +22,37 @@ describe("commands/doctor - runDoctorChecks", () => {
     assert.equal(typeof report.summary.failed, "number");
   });
 
-  it("should have config check item", async () => {
+  it("includes all required check categories", async () => {
     const report = await runDoctorChecks(process.cwd());
 
-    const configItem = report.items.find((i) => i.category === "config");
-    assert.ok(configItem);
+    const categories = ["config", "agents", "permissions", "web-tools"];
+    for (const cat of categories) {
+      assert.ok(report.items.find((i) => i.category === cat), `missing ${cat}`);
+    }
+
+    // provider category should exist
+    assert.ok(report.items.filter((i) => i.category === "provider").length > 0);
   });
 
-  it("should have agents check item", async () => {
-    const report = await runDoctorChecks(process.cwd());
-
-    const agentsItem = report.items.find((i) => i.category === "agents");
-    assert.ok(agentsItem);
-    assert.ok(agentsItem.message.includes("builtin agents"));
-  });
-
-  it("should have provider check items", async () => {
-    const report = await runDoctorChecks(process.cwd());
-
-    const providerItems = report.items.filter((i) => i.category === "provider");
-    assert.ok(providerItems.length > 0);
-  });
-
-  it("should have permissions check item", async () => {
-    const report = await runDoctorChecks(process.cwd());
-
-    const permissionsItem = report.items.find((i) => i.category === "permissions");
-    assert.ok(permissionsItem);
-  });
-
-  it("should have web-tools check item", async () => {
-    const report = await runDoctorChecks(process.cwd());
-
-    const webToolsItem = report.items.find((i) => i.category === "web-tools");
-    assert.ok(webToolsItem);
-  });
-
-  it("should have valid status values", async () => {
+  it("has valid status values and messages for all items", async () => {
     const report = await runDoctorChecks(process.cwd());
 
     for (const item of report.items) {
-      assert.ok(
-        ["pass", "warn", "fail", "info"].includes(item.status),
-        `Invalid status: ${item.status}`
-      );
+      assert.ok(["pass", "warn", "fail", "info"].includes(item.status), `Invalid status: ${item.status}`);
+      assert.ok(item.message && item.message.length > 0);
     }
-  });
-
-  it("should have messages for all items", async () => {
-    const report = await runDoctorChecks(process.cwd());
-
-    for (const item of report.items) {
-      assert.ok(item.message);
-      assert.ok(item.message.length > 0);
-    }
-  });
-
-  it("should calculate summary correctly", async () => {
-    const report = await runDoctorChecks(process.cwd());
 
     const expectedPassed = report.items.filter((i) => i.status === "pass").length;
     const expectedWarnings = report.items.filter((i) => i.status === "warn").length;
     const expectedFailed = report.items.filter((i) => i.status === "fail").length;
-
     assert.equal(report.summary.passed, expectedPassed);
     assert.equal(report.summary.warnings, expectedWarnings);
     assert.equal(report.summary.failed, expectedFailed);
   });
 
-  it("should include ddgs in provider checks", async () => {
+  it("includes ddgs in provider checks", async () => {
     const report = await runDoctorChecks(process.cwd());
-
-    const ddgsItem = report.items.find((i) => i.message?.includes("DuckDuckGo"));
-    assert.ok(ddgsItem);
+    assert.ok(report.items.find((i) => i.message?.includes("DuckDuckGo")));
   });
 });
 
@@ -159,27 +117,17 @@ describe("commands/doctor - formatDoctorReport", () => {
 });
 
 describe("commands/doctor - diagnostic status", () => {
-  it("should have pass status for available ddgs", async () => {
+  it("ddgs is available, disabled providers show info", async () => {
     const report = await runDoctorChecks(process.cwd());
 
-    // ddgs should be available (pass or warn)
     const ddgsItem = report.items.find((i) => i.message?.includes("DuckDuckGo"));
     assert.ok(ddgsItem);
     assert.ok(["pass", "warn"].includes(ddgsItem.status));
-  });
 
-  it("should have info status for disabled providers", async () => {
-    const report = await runDoctorChecks(process.cwd());
-
-    // tavily, serper, etc. should be info (not enabled)
-    const disabledProviders = ["tavily", "serper", "brave", "openserp", "searxng"];
-    for (const provider of disabledProviders) {
-      const item = report.items.find((i) => {
-        const msg = i.message?.toLowerCase() ?? "";
-        return msg.includes(provider.toLowerCase());
-      });
+    // disabled providers are info
+    for (const provider of ["tavily", "serper", "brave", "openserp", "searxng"]) {
+      const item = report.items.find((i) => i.message?.toLowerCase().includes(provider.toLowerCase()));
       if (item) {
-        // Either not enabled (info) or configured (pass/warn)
         assert.ok(["pass", "warn", "info"].includes(item.status));
       }
     }

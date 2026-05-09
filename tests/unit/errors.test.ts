@@ -129,58 +129,40 @@ describe("errors - createWebError", () => {
 });
 
 describe("errors - mapHttpStatusToError", () => {
-  it("should map 401 to PROVIDER_AUTH_FAILED", () => {
-    const error = mapHttpStatusToError(401);
-    assert.equal(error.code, WEB_ERROR_CODES.PROVIDER_AUTH_FAILED);
-    assert.equal(error.retryable, false);
+  it("maps 401/403 to PROVIDER_AUTH_FAILED", () => {
+    const e401 = mapHttpStatusToError(401);
+    assert.equal(e401.code, WEB_ERROR_CODES.PROVIDER_AUTH_FAILED);
+    assert.equal(e401.retryable, false);
+
+    const e403 = mapHttpStatusToError(403);
+    assert.equal(e403.code, WEB_ERROR_CODES.PROVIDER_AUTH_FAILED);
   });
 
-  it("should map 403 to PROVIDER_AUTH_FAILED", () => {
-    const error = mapHttpStatusToError(403);
-    assert.equal(error.code, WEB_ERROR_CODES.PROVIDER_AUTH_FAILED);
-    assert.equal(error.retryable, false);
-  });
-
-  it("should map 429 to PROVIDER_RATE_LIMITED", () => {
+  it("maps 429 to PROVIDER_RATE_LIMITED", () => {
     const error = mapHttpStatusToError(429);
     assert.equal(error.code, WEB_ERROR_CODES.PROVIDER_RATE_LIMITED);
     assert.equal(error.retryable, true);
   });
 
-  it("should map 500 to PROVIDER_UNAVAILABLE", () => {
-    const error = mapHttpStatusToError(500);
-    assert.equal(error.code, WEB_ERROR_CODES.PROVIDER_UNAVAILABLE);
-    assert.equal(error.retryable, true);
+  it("maps 5xx to PROVIDER_UNAVAILABLE", () => {
+    for (const status of [500, 502, 503, 504]) {
+      const error = mapHttpStatusToError(status);
+      assert.equal(error.code, WEB_ERROR_CODES.PROVIDER_UNAVAILABLE, `status ${status}`);
+      assert.equal(error.retryable, true);
+    }
   });
 
-  it("should map 502 to PROVIDER_UNAVAILABLE", () => {
-    const error = mapHttpStatusToError(502);
-    assert.equal(error.code, WEB_ERROR_CODES.PROVIDER_UNAVAILABLE);
-  });
-
-  it("should map 503 to PROVIDER_UNAVAILABLE", () => {
-    const error = mapHttpStatusToError(503);
-    assert.equal(error.code, WEB_ERROR_CODES.PROVIDER_UNAVAILABLE);
-  });
-
-  it("should map 504 to PROVIDER_UNAVAILABLE", () => {
-    const error = mapHttpStatusToError(504);
-    assert.equal(error.code, WEB_ERROR_CODES.PROVIDER_UNAVAILABLE);
-  });
-
-  it("should include provider when specified", () => {
-    const error = mapHttpStatusToError(401, "tavily");
-    assert.equal(error.provider, "tavily");
-  });
-
-  it("should include custom message when specified", () => {
-    const error = mapHttpStatusToError(401, undefined, "Custom auth error");
-    assert.equal(error.message, "Custom auth error");
-  });
-
-  it("should map unknown status to WEB_SEARCH_FAILED", () => {
+  it("maps unknown status to WEB_SEARCH_FAILED", () => {
     const error = mapHttpStatusToError(418);
     assert.equal(error.code, WEB_ERROR_CODES.WEB_SEARCH_FAILED);
+  });
+
+  it("includes provider and custom message", () => {
+    const e1 = mapHttpStatusToError(401, "tavily");
+    assert.equal(e1.provider, "tavily");
+
+    const e2 = mapHttpStatusToError(401, undefined, "Custom auth error");
+    assert.equal(e2.message, "Custom auth error");
   });
 });
 
@@ -258,7 +240,7 @@ describe("errors - formatWebError", () => {
 });
 
 describe("errors - getErrorSummary", () => {
-  it("should count errors by code", () => {
+  it("counts errors by code and retryable", () => {
     const errors: WebError[] = [
       createWebError(WEB_ERROR_CODES.NETWORK_ERROR, "Error 1"),
       createWebError(WEB_ERROR_CODES.NETWORK_ERROR, "Error 2"),
@@ -266,26 +248,14 @@ describe("errors - getErrorSummary", () => {
     ];
 
     const summary = getErrorSummary(errors);
-
     assert.equal(summary.total, 3);
     assert.equal(summary.byCode.NETWORK_ERROR, 2);
     assert.equal(summary.byCode.PROVIDER_AUTH_FAILED, 1);
+    assert.equal(summary.retryableCount, 2); // both NETWORK_ERROR are retryable
   });
 
-  it("should count retryable errors", () => {
-    const errors: WebError[] = [
-      createWebError(WEB_ERROR_CODES.NETWORK_ERROR, "Error 1"), // retryable
-      createWebError(WEB_ERROR_CODES.PROVIDER_AUTH_FAILED, "Error 2"), // not retryable
-    ];
-
-    const summary = getErrorSummary(errors);
-
-    assert.equal(summary.retryableCount, 1);
-  });
-
-  it("should handle empty array", () => {
+  it("handles empty array", () => {
     const summary = getErrorSummary([]);
-
     assert.equal(summary.total, 0);
     assert.deepEqual(summary.byCode, {});
     assert.equal(summary.retryableCount, 0);

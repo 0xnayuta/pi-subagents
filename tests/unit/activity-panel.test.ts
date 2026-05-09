@@ -29,42 +29,31 @@ describe("activity panel - ActivityPanel", () => {
     panel.dispose();
   });
 
-  it("should create with default options", () => {
+  it("creates with default and custom options", () => {
     const defaultPanel = new ActivityPanel();
     assert.ok(defaultPanel);
     defaultPanel.dispose();
-  });
 
-  it("should create with custom options", () => {
-    const options: ActivityPanelOptions = {
+    const customPanel = new ActivityPanel({
       maxEntries: 20,
       showStats: true,
       autoRefresh: false,
-    };
-    const customPanel = new ActivityPanel(options);
+    });
     assert.ok(customPanel);
     customPanel.dispose();
   });
 
-  it("should render header", () => {
+  it("renders header, stats bar, help bar, and empty state", () => {
     const lines = panel.render(80);
     assert.ok(lines.length > 0);
     assert.ok(lines[0]!.includes("Web Tool Activity"));
-  });
-
-  it("should render stats bar", () => {
-    const lines = panel.render(80);
     assert.ok(lines.some((line) => line.includes("total:")));
     assert.ok(lines.some((line) => line.includes("success:")));
-  });
-
-  it("should render empty state", () => {
-    const lines = panel.render(80);
+    assert.ok(lines.some((line) => line.includes("navigate")));
     assert.ok(lines.some((line) => line.includes("no recent activity")));
   });
 
-  it("should render activity entries", () => {
-    // Add some activity
+  it("renders activity entries after activity is recorded", () => {
     recordSearchActivity({
       requestId: "test-1",
       type: "search",
@@ -72,123 +61,59 @@ describe("activity panel - ActivityPanel", () => {
       duration: 100,
       provider: "ddgs",
     });
-
-    // Refresh the panel to pick up new activity
     panel.refresh();
 
     const lines = panel.render(80);
-
-    // Should show entries
     assert.ok(lines.some((line) => line.includes("SEARCH")));
   });
 
-  it("should render help bar", () => {
-    const lines = panel.render(80);
-    assert.ok(lines.some((line) => line.includes("navigate")));
-    assert.ok(lines.some((line) => line.includes("refresh")));
-    assert.ok(lines.some((line) => line.includes("close")));
-  });
-
-  it("should handle escape key to close", () => {
+  it("handles keyboard input", () => {
+    // escape to close
     let closed = false;
     panel.setOnClose(() => {
       closed = true;
     });
-
     panel.handleInput("escape");
     assert.equal(closed, true);
-  });
 
-  it("should handle 'r' key to refresh", () => {
-    // Add activity
-    recordSearchActivity({
-      requestId: "test-r",
-      type: "search",
-      status: "success",
-      duration: 50,
-    });
-
-    // This should not throw
-    panel.handleInput("r");
-  });
-
-  it("should handle 'c' key to clear logs", () => {
-    // Add activity
+    // c to clear
     recordSearchActivity({
       requestId: "test-c",
       type: "search",
       status: "success",
       duration: 50,
     });
-
     panel.handleInput("c");
+    assert.ok(panel.render(80).some((line) => line.includes("no recent activity")));
 
-    // Log should be cleared
-    const lines = panel.render(80);
-    assert.ok(lines.some((line) => line.includes("no recent activity")));
-  });
-
-  it("should handle 's' key to reset stats", () => {
-    // Add activity
+    // s to reset stats
     recordSearchActivity({
       requestId: "test-s",
       type: "search",
       status: "success",
       duration: 50,
     });
-
     panel.handleInput("s");
+    assert.ok(panel.render(80).some((line) => line.includes("total:0")));
 
-    // Stats should be reset
-    const lines = panel.render(80);
-    assert.ok(lines.some((line) => line.includes("total:0")));
-  });
-
-  it("should handle up arrow key navigation", () => {
-    // Add multiple entries
+    // arrow keys don't crash
     for (let i = 0; i < 5; i++) {
-      recordSearchActivity({
-        requestId: `test-up-${i}`,
-        type: "search",
-        status: "success",
-        duration: 50,
-      });
+      recordSearchActivity({ requestId: `test-${i}`, type: "search", status: "success", duration: 50 });
     }
-
     panel.refresh();
-
-    // Navigate up - should not crash
-    panel.handleInput("\x1b[A");
-    panel.handleInput("\x1b[A");
+    panel.handleInput("\x1b[A"); // up
+    panel.handleInput("\x1b[B"); // down
+    panel.handleInput("r"); // refresh
   });
 
-  it("should handle down arrow key navigation", () => {
-    panel.handleInput("\x1b[B");
-  });
-
-  it("should invalidate cached lines", () => {
-    // Render once
-    panel.render(80);
-
-    // Invalidate
-    panel.invalidate();
-
-    // Should be able to render again
-    const lines = panel.render(80);
-    assert.ok(lines.length > 0);
-  });
-
-  it("should cache lines by width", () => {
-    // Render with width 80
+  it("caches and invalidates rendered lines", () => {
     const lines1 = panel.render(80);
-
-    // Same width should return cached result
     const lines2 = panel.render(80);
-    assert.deepEqual(lines1, lines2);
+    assert.deepEqual(lines1, lines2); // cached
 
-    // Different width should recalculate
-    const lines3 = panel.render(60);
-    assert.ok(lines3.length > 0);
+    panel.invalidate();
+    const lines3 = panel.render(80);
+    assert.ok(lines3.length > 0); // recalculated
   });
 });
 
@@ -198,18 +123,13 @@ describe("activity panel - createActivityPanel factory", () => {
     resetWebToolStats();
   });
 
-  it("should create panel with default options", () => {
-    const panel = createActivityPanel();
-    assert.ok(panel);
-    panel.dispose();
-  });
+  it("creates panel with default and custom options", () => {
+    const panel1 = createActivityPanel();
+    assert.ok(panel1);
+    panel1.dispose();
 
-  it("should create panel with custom options", () => {
-    const panel = createActivityPanel({
-      maxEntries: 25,
-      autoRefresh: true,
-    });
-    assert.ok(panel);
-    panel.dispose();
+    const panel2 = createActivityPanel({ maxEntries: 25, autoRefresh: true });
+    assert.ok(panel2);
+    panel2.dispose();
   });
 });

@@ -524,4 +524,164 @@ describe("web_search", () => {
     assert.equal(maxActive <= 3, true);
     assert.equal(maxActive >= 2, true);
   });
+
+  // ============================================================================
+  // A.1: Single query zero-config (out-of-the-box DDGS)
+  // ============================================================================
+
+  it("uses ddgs by default when no commercial keys are set", async () => {
+    delete process.env.BRAVE_SEARCH_API_KEY;
+    delete process.env.TAVILY_API_KEY;
+    delete process.env.SERPER_API_KEY;
+
+    const calls: string[] = [];
+    globalThis.fetch = ((input: RequestInfo | URL) => {
+      calls.push(String(input));
+      return Promise.resolve(
+        new Response(
+          `<html><body>
+            <a href="https://duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2Fdefault">Default Result</a>
+          </body></html>`,
+          { status: 200, headers: { "content-type": "text/html" } }
+        )
+      );
+    }) as typeof fetch;
+
+    // Use default config (no explicit provider)
+    const result = await webSearch({ query: "typescript" }, mergeConfig({}));
+
+    assert.equal("responseId" in result, true);
+    if ("responseId" in result) {
+      assert.match(calls[0], /lite\.duckduckgo\.com\/lite\//);
+      assert.equal(result.queries[0].results[0].source, "fallback");
+    }
+  });
+
+  // ============================================================================
+  // B.4: SearXNG provider missing endpoint
+  // ============================================================================
+
+  it("rejects searxng provider when enabled but baseUrl is not configured", async () => {
+    const result = await webSearch(
+      { query: "typescript" },
+      mergeConfig({ webTools: { provider: "searxng", searxng: { enabled: true } } })
+    );
+
+    assert.equal("error" in result, true);
+    if ("error" in result) {
+      assert.equal(result.error.code, "INVALID_INPUT");
+      assert.match(result.error.message, /baseUrl/i);
+    }
+  });
+
+  // ============================================================================
+  // C.4: Explicit provider does not fall back
+  // ============================================================================
+
+  it("does not fall back to ddgs when explicit searxng fails", async () => {
+    const calls: string[] = [];
+    globalThis.fetch = ((input: RequestInfo | URL) => {
+      calls.push(String(input));
+      // Simulate searxng unreachable
+      return Promise.resolve(new Response("Service Unavailable", { status: 503 }));
+    }) as typeof fetch;
+
+    const result = await webSearch(
+      { query: "typescript" },
+      mergeConfig({
+        webTools: {
+          provider: "searxng",
+          searxng: { enabled: true, baseUrl: "http://127.0.0.1:9999" },
+        },
+      })
+    );
+
+    assert.equal("error" in result, true);
+    if ("error" in result) {
+      // Should be an error from searxng, not a successful ddgs fallback
+      assert.notEqual(result.error.code, "WEB_SEARCH_FAILED");
+      assert.equal(calls.filter((c) => c.includes("duckduckgo")).length, 0);
+    }
+  });
+
+  it("does not attempt ddgs when explicit searxng is unreachable", async () => {
+    const calls: string[] = [];
+    globalThis.fetch = ((input: RequestInfo | URL) => {
+      calls.push(String(input));
+      // Fail on any URL (simulate unreachable)
+      throw new Error("Connection refused");
+    }) as typeof fetch;
+
+    const result = await webSearch(
+      { query: "typescript" },
+      mergeConfig({
+        webTools: {
+          provider: "searxng",
+          searxng: { enabled: true, baseUrl: "http://127.0.0.1:9999" },
+        },
+      })
+    );
+
+    assert.equal("error" in result, true);
+    // Only searxng was called, no ddgs
+    assert.equal(calls.length, 1);
+    assert.match(calls[0], /127\.0\.0\.1:9999/);
+  });
+
+  // ============================================================================
+  // C.5: DDGS result count upper limit protection
+  // ============================================================================
+
+  it("caps ddgs results at 5 regardless of numResults request", async () => {
+    const calls: string[] = [];
+    globalThis.fetch = ((input: RequestInfo | URL) => {
+      calls.push(String(input));
+      // Simulate ddgs returning many links
+      const manyLinks = Array.from({ length: 10 }, (_, i) =>
+        `<a href="https://duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2F${i}">Result ${i}</a>`
+      ).join("");
+      return Promise.resolve(
+        new Response(`<html><body>${manyLinks}</body></html>`, {
+          status: 200,
+          headers: { "content-type": "text/html" },
+        })
+      );
+    }) as typeof fetch;
+
+    const result = await webSearch(
+      { query: "typescript", numResults: 10 },
+      mergeConfig({ webTools: { provider: "ddgs" } })
+    );
+
+    assert.equal("responseId" in result, true);
+    if ("responseId" in result) {
+      // DDGS hard cap is 5, so at most 5 results regardless of numResults: 10
+      assert.ok(result.queries[0].results.length <= 5);
+      assert.equal(result.queries[0].results.length, 5);
+    }
+  });
+
+  it("ddgs respects numResults when less than max cap", async () => {
+    globalThis.fetch = (() =>
+      Promise.resolve(
+        new Response(
+          `<html><body>
+            <a href="https://duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2F1">Result 1</a>
+            <a href="https://duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2F2">Result 2</a>
+            <a href="https://duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2F3">Result 3</a>
+          </body></html>`,
+          { status: 200, headers: { "content-type": "text/html" } }
+        )
+      )) as typeof fetch;
+
+    const result = await webSearch(
+      { query: "typescript", numResults: 3 },
+      mergeConfig({ webTools: { provider: "ddgs" } })
+    );
+
+    assert.equal("responseId" in result, true);
+    if ("responseId" in result) {
+      assert.equal(result.queries[0].results.length, 3);
+    }
+  });
 });

@@ -136,4 +136,128 @@ describe("fetch_content", () => {
 			assert.equal(result.results[0].truncated, true);
 		}
 	});
+
+	// ============================================================================
+	// D.4: Content type restrictions
+	// ============================================================================
+
+	it("rejects application/json content type", async () => {
+		globalThis.fetch = (() =>
+			Promise.resolve(
+				new Response('{"key": "value"}', {
+					status: 200,
+					headers: { "content-type": "application/json" },
+				})
+			)) as typeof fetch;
+
+		const result = await fetchContent(
+			{ url: "https://93.184.216.34/api" },
+			mergeConfig({})
+		);
+
+		assert.equal("error" in result, true);
+		if ("error" in result) {
+			assert.equal(result.error.code, "FETCH_CONTENT_FAILED");
+			assert.match(result.error.message, /Unsupported content type/i);
+		}
+	});
+
+	it("rejects image/png content type", async () => {
+		globalThis.fetch = (() =>
+			Promise.resolve(
+				new Response("\x89PNG\r\n\x1a\n", {
+					status: 200,
+					headers: { "content-type": "image/png" },
+				})
+			)) as typeof fetch;
+
+		const result = await fetchContent(
+			{ url: "https://93.184.216.34/image.png" },
+			mergeConfig({})
+		);
+
+		assert.equal("error" in result, true);
+		if ("error" in result) {
+			assert.equal(result.error.code, "FETCH_CONTENT_FAILED");
+			assert.match(result.error.message, /Unsupported content type/i);
+		}
+	});
+
+	it("rejects application/octet-stream content type", async () => {
+		globalThis.fetch = (() =>
+			Promise.resolve(
+				new Response("binary data here", {
+					status: 200,
+					headers: { "content-type": "application/octet-stream" },
+				})
+			)) as typeof fetch;
+
+		const result = await fetchContent(
+			{ url: "https://93.184.216.34/binary" },
+			mergeConfig({})
+		);
+
+		assert.equal("error" in result, true);
+		if ("error" in result) {
+			assert.equal(result.error.code, "FETCH_CONTENT_FAILED");
+			assert.match(result.error.message, /Unsupported content type/i);
+		}
+	});
+
+	it("accepts text/plain content type", async () => {
+		globalThis.fetch = (() =>
+			Promise.resolve(
+				new Response("Plain text content", {
+					status: 200,
+					headers: { "content-type": "text/plain; charset=utf-8" },
+				})
+			)) as typeof fetch;
+
+		const result = await fetchContent(
+			{ url: "https://93.184.216.34/plain.txt" },
+			mergeConfig({})
+		);
+
+		assert.equal("responseId" in result, true);
+		if ("responseId" in result) {
+			assert.equal(result.results[0].content, "Plain text content");
+		}
+	});
+
+	it("accepts text/html content type", async () => {
+		globalThis.fetch = (() =>
+			Promise.resolve(
+				new Response("<html><body>HTML content</body></html>", {
+					status: 200,
+					headers: { "content-type": "text/html; charset=utf-8" },
+				})
+			)) as typeof fetch;
+
+		const result = await fetchContent(
+			{ url: "https://93.184.216.34/page.html" },
+			mergeConfig({})
+		);
+
+		assert.equal("responseId" in result, true);
+		if ("responseId" in result) {
+			assert.match(result.results[0].content, /HTML content/i);
+		}
+	});
+
+	it("handles content-type with charset parameter", async () => {
+		globalThis.fetch = (() =>
+			Promise.resolve(
+				new Response("UTF-8 text", {
+					status: 200,
+					headers: { "content-type": "text/plain; charset=UTF-8" },
+				})
+			)) as typeof fetch;
+
+		const result = await fetchContent(
+			{ url: "https://93.184.216.34/utf8.txt" },
+			mergeConfig({})
+		);
+
+		assert.equal("responseId" in result, true);
+	});
 });
