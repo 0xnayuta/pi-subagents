@@ -1,5 +1,5 @@
-import type { AgentToolResult } from "@mariozechner/pi-agent-core";
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { AgentToolResult } from "@earendil-works/pi-agent-core";
+import { type ExtensionAPI, defineTool } from "@earendil-works/pi-coding-agent";
 import type { ResolvedExtensionConfig } from "../shared/types.ts";
 import { initializeSearchCache } from "./cache.ts";
 import { initializeRequestThrottler } from "./concurrency.ts";
@@ -128,65 +128,73 @@ export function registerWebTools(pi: ExtensionAPI, config: ResolvedExtensionConf
     });
   }
 
-  pi.registerTool({
-    name: "web_search",
-    label: "Web Search",
-    description: "Search the web with the configured readonly search provider.",
-    parameters: WebSearchParams as any,
-    execute(_id: string, params: WebSearchInput, signal: AbortSignal) {
-      return webSearch(params, config, signal).then(asToolResult);
-    },
-    renderCall(args: WebSearchInput, theme: any) {
-      return renderWebSearchCall(args, theme);
-    },
-    renderResult(
-      result: AgentToolResult<any>,
-      options: { expanded: boolean; isPartial: boolean },
-      theme: any
-    ) {
-      return renderWebSearchResult(result, options, theme);
-    },
-  } as any);
+  pi.registerTool(
+    defineTool({
+      name: "web_search",
+      label: "Web Search",
+      description: "Search the web with the configured readonly search provider.",
+      parameters: WebSearchParams,
+      execute(_id: string, params: WebSearchInput, signal: AbortSignal | undefined) {
+        return webSearch(params, config, signal ?? new AbortController().signal).then(asToolResult);
+      },
+      renderCall(args: WebSearchInput, theme: any) {
+        return renderWebSearchCall(args, theme);
+      },
+      renderResult(
+        result: AgentToolResult<any>,
+        options: { expanded: boolean; isPartial: boolean },
+        theme: any
+      ) {
+        return renderWebSearchResult(result, options, theme);
+      },
+    })
+  );
 
-  pi.registerTool({
-    name: "fetch_content",
-    label: "Fetch Content",
-    description: "Fetch HTTP/HTTPS URL content and extract readable text. Readonly.",
-    parameters: FetchContentParams as any,
-    execute(_id: string, params: FetchContentInput, signal: AbortSignal) {
-      return fetchContent(params, config, signal).then(asToolResult);
-    },
-    renderCall(args: FetchContentInput, theme: any) {
-      return renderFetchContentCall(args, theme);
-    },
-    renderResult(
-      result: AgentToolResult<any>,
-      options: { expanded: boolean; isPartial: boolean },
-      theme: any
-    ) {
-      return renderFetchContentResult(result, options, theme);
-    },
-  } as any);
+  pi.registerTool(
+    defineTool({
+      name: "fetch_content",
+      label: "Fetch Content",
+      description: "Fetch HTTP/HTTPS URL content and extract readable text. Readonly.",
+      parameters: FetchContentParams,
+      execute(_id: string, params: FetchContentInput, signal: AbortSignal | undefined) {
+        return fetchContent(params, config, signal ?? new AbortController().signal).then(
+          asToolResult
+        );
+      },
+      renderCall(args: FetchContentInput, theme: any) {
+        return renderFetchContentCall(args, theme);
+      },
+      renderResult(
+        result: AgentToolResult<any>,
+        options: { expanded: boolean; isPartial: boolean },
+        theme: any
+      ) {
+        return renderFetchContentResult(result, options, theme);
+      },
+    })
+  );
 
-  pi.registerTool({
-    name: "get_search_content",
-    label: "Get Search Content",
-    description: "Retrieve stored web_search or fetch_content results by responseId. Readonly.",
-    parameters: GetSearchContentParams as any,
-    execute(_id: string, params: GetSearchContentInput) {
-      return asToolResult(getSearchContent(params, config.webTools.maxContentChars));
-    },
-    renderCall(args: GetSearchContentInput, theme: any) {
-      return renderGetSearchContentCall(args, theme);
-    },
-    renderResult(
-      result: AgentToolResult<any>,
-      options: { expanded: boolean; isPartial: boolean },
-      theme: any
-    ) {
-      return renderGetSearchContentResult(result, options, theme);
-    },
-  } as any);
+  pi.registerTool(
+    defineTool({
+      name: "get_search_content",
+      label: "Get Search Content",
+      description: "Retrieve stored web_search or fetch_content results by responseId. Readonly.",
+      parameters: GetSearchContentParams,
+      async execute(_id: string, params: GetSearchContentInput) {
+        return asToolResult(getSearchContent(params, config.webTools.maxContentChars));
+      },
+      renderCall(args: GetSearchContentInput, theme: any) {
+        return renderGetSearchContentCall(args, theme);
+      },
+      renderResult(
+        result: AgentToolResult<any>,
+        options: { expanded: boolean; isPartial: boolean },
+        theme: any
+      ) {
+        return renderGetSearchContentResult(result, options, theme);
+      },
+    })
+  );
 }
 
 export type { FetchContentInput, GetSearchContentInput, WebSearchInput };

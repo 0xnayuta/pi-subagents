@@ -5,8 +5,8 @@ import * as path from "node:path";
 const require = createRequire(import.meta.url);
 
 const PI_PACKAGE_NAMES = new Set([
-  "@mariozechner/pi-coding-agent",
   "@earendil-works/pi-coding-agent",
+  "@mariozechner/pi-coding-agent",
 ]);
 
 function isPiPackageName(name: unknown): boolean {
@@ -78,7 +78,11 @@ function defaultResolvePackageJson(existsSync: (filePath: string) => boolean): s
   const discovered = findPiPackageJsonFrom(process.cwd(), existsSync);
   if (discovered) return discovered;
 
-  return require.resolve("@mariozechner/pi-coding-agent/package.json");
+  try {
+    return require.resolve("@earendil-works/pi-coding-agent/package.json");
+  } catch {
+    return require.resolve("@mariozechner/pi-coding-agent/package.json");
+  }
 }
 
 export function resolveWindowsPiCliScript(deps: PiSpawnDeps = {}): string | undefined {

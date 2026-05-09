@@ -71,30 +71,38 @@ TUI 渲染根据 `context.isError`（pi 协议级错误）或 `details.error` / 
 **位置**：
 - `src/extension/index.ts` - `tool.parameters`
 - `src/extension/schemas.ts` - `SubagentParams` 定义
+- `src/web/index.ts` / `src/web/schemas.ts` - web tools 参数 schema
 
-**描述**：
-使用 `Type.Object()` 创建的参数 schema 在赋值给 `ToolDefinition.parameters` 时，TypeScript 报告 `TObject` 不满足 `TSchema` 约束。
+**调查结论**：
+该问题真实存在于旧版依赖组合：`@mariozechner/pi-*` 0.65.x 的 `ToolDefinition` 使用 `@sinclair/typebox` 的 `TSchema`，而 pi-subagents 使用 `typebox` 1.x 的 `Type.Object()`。两套 TypeBox 类型不兼容，因此 `typebox` 1.x 的 `TObject` 无法满足旧 pi 类型定义中的 `TSchema` 约束。
+
+pi 0.74.0 更换包名为 `@earendil-works/pi-*` 后，pi 上游已经统一改用 `typebox` 1.x：
 
 ```typescript
-// 定义
-const SubagentParams = Type.Object({...});
-
-// 使用时报错
-const tool: ToolDefinition<..., Details> = {
-    parameters: SubagentParams,  // TObject vs TSchema 不匹配
-    ...
-};
+import type { Static, TSchema } from "typebox";
 ```
 
+因此根因不是 `Type.Object()` 构造方式错误，而是旧依赖组合中 schema 类型来源不一致。
+
 **当前解决方案**：
-使用 `as any` 类型断言绕过。
+已迁移到 `@earendil-works/pi-*` 0.74.x，并保留 `typebox` 1.x。`SubagentParams` 与 web tools schema 现在可直接赋给 `ToolDefinition.parameters`，相关 `parameters: ... as any` 已移除。
 
-**建议**：
-- 检查 TypeBox 版本兼容性
-- 可能需要使用 `TypeBox.Type<...>()` 或其他类型构造方式
+```typescript
+import { defineTool } from "@earendil-works/pi-coding-agent";
+import { Type } from "typebox";
 
-**跟踪 Issue**：
-（待创建）
+const SubagentParams = Type.Object({ ... });
+
+const tool = defineTool({
+  parameters: SubagentParams,
+  async execute(_id, params) {
+    // params 由 Static<typeof SubagentParams> 推导
+  },
+});
+```
+
+**状态**：
+已修复。
 
 ---
 
@@ -136,5 +144,5 @@ pi.on("context" as any, (event: any) => {
 | 日期 | 问题 | 状态 |
 |------|------|------|
 | 2026-05-08 | `AgentToolResult` / `isError` 语义 | 已按上游结论改为 `details.error` |
-| 2026-05-08 | TypeBox TObject 不满足 TSchema | 待调查 |
+| 2026-05-09 | TypeBox TObject 不满足 TSchema | 已通过迁移到 @earendil-works/pi-* 0.74.x + typebox 1.x 修复 |
 | 2026-05-08 | 事件处理器类型差异 | 待调查 |

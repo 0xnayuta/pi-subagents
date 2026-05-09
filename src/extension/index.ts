@@ -13,9 +13,13 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { AgentToolResult } from "@mariozechner/pi-agent-core";
-import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
-import { Text } from "@mariozechner/pi-tui";
+import type { AgentToolResult } from "@earendil-works/pi-agent-core";
+import {
+  type ExtensionAPI,
+  type ExtensionContext,
+  defineTool,
+} from "@earendil-works/pi-coding-agent";
+import { Text } from "@earendil-works/pi-tui";
 import { discoverAgents } from "../agents/agents.ts";
 import { loadConfig, mergeConfig } from "../config/load-config.ts";
 import {
@@ -131,7 +135,7 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
   };
 
   // Define the subagent tool
-  const tool = {
+  const tool = defineTool({
     name: "subagent",
     label: "Subagent",
     description: `Delegate a focused task to a specialized readonly agent.
@@ -149,7 +153,7 @@ Parameters:
 
 Example:
   subagent({ agent: "explorer", task: "Find where authentication is implemented" })`,
-    parameters: SubagentParams as any,
+    parameters: SubagentParams,
     execute(
       id: string,
       params: SubagentParamsLike,
@@ -157,7 +161,7 @@ Example:
       onUpdate: ((result: AgentToolResult<Details>) => void) | undefined,
       ctx: ExtensionContext
     ) {
-      return executeSubagent(id, params, signal, onUpdate, ctx);
+      return executeSubagent(id, params, signal ?? new AbortController().signal, onUpdate, ctx);
     },
 
     renderCall(args: any, theme: any) {
@@ -184,7 +188,7 @@ Example:
       const displayText = content || result.details?.error?.message || "(no output)";
       return new Text(`${prefix} ${displayText}`, 0, 0);
     },
-  } as any;
+  });
 
   // Register the tool
   pi.registerTool(tool);
