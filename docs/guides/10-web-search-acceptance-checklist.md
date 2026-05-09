@@ -43,30 +43,30 @@ last_verified: 2026-05-09
   - 执行：`web_search({})`
   - 期望：`error.code = INVALID_INPUT`，`message` 说明需要 query 或 queries
 
-- [ ] **显式 Brave provider 缺少 key**
+- [x] **显式 Brave provider 缺少 key**
   - 前置：移除 `BRAVE_SEARCH_API_KEY`
   - 执行：`web_search({ query: "typescript" }, mergeConfig({ webTools: { provider: "brave" } }))`
   - 期望：`error.code = WEB_SEARCH_AUTH_REQUIRED`
 
-- [ ] **显式 Tavily provider 缺少 key**
+- [x] **显式 Tavily provider 缺少 key**
   - 前置：移除 `TAVILY_API_KEY`
   - 执行：`web_search({ query: "typescript" }, mergeConfig({ webTools: { provider: "tavily", tavily: { enabled: true } } }))`
   - 期望：`error.code = WEB_SEARCH_AUTH_REQUIRED`
 
-- [ ] **显式 SearXNG provider 未配置 endpoint**
+- [x] **显式 SearXNG provider 未配置 endpoint**
   - 执行：`web_search({ query: "typescript" }, mergeConfig({ webTools: { provider: "searxng", searxng: { enabled: true } } }))`
   - 期望：`error.code = INVALID_INPUT`，提示需要配置 `baseUrl`
 
-- [ ] **限流错误分类**
+- [x] **限流错误分类**
   - 前置：通过 mock 或受控环境触发 provider 429
   - 期望：`error.code = WEB_SEARCH_RATE_LIMIT`
 
-- [ ] **超时/取消错误分类**
+- [x] **超时/取消错误分类**
   - 前置：将 `webTools.timeoutMs` 设为极小值
   - 执行：`web_search(...)` 或 `fetch_content(...)`
   - 期望：`error.code = SUBAGENT_TIMEOUT`，message 含可操作建议
 
-- [ ] **selector 未命中提示可操作**
+- [x] **selector 未命中提示可操作**
   - 执行：`get_search_content({ responseId: "...", query: "not-exist" })`
   - 期望：`NOT_FOUND` 或错误，提示可用 selector
 
@@ -74,26 +74,26 @@ last_verified: 2026-05-09
 
 ## C. Provider 分层选择（必过）
 
-- [ ] **auto 模式：商业 provider 有 key 时优先**
+- [x] **auto 模式：商业 provider 有 key 时优先**
   - 前置：设置 `TAVILY_API_KEY` 或 `SERPER_API_KEY` 或 `BRAVE_SEARCH_API_KEY`
   - 执行：`web_search({ query: "typescript" }, mergeConfig({ webTools: { provider: "auto" } }))`
   - 期望：命中商业 provider（非 ddgs），`source` 为对应 provider 名
 
-- [ ] **auto 模式：无商业 key 时降级到 DDGS**
+- [x] **auto 模式：无商业 key 时降级到 DDGS**
   - 前置：移除所有商业 API key
   - 执行：`web_search({ query: "typescript" }, mergeConfig({ webTools: { provider: "auto" } }))`
   - 期望：落到 DDGS，`source = "fallback"`
 
-- [ ] **auto 模式：provider 调用失败继续尝试下一个**
+- [x] **auto 模式：provider 调用失败继续尝试下一个**
   - 前置：配置 `provider: "auto"` 和 `providerPriority: ["searxng", "ddgs"]`，其中 searxng 不可达
   - 执行：`web_search({ query: "typescript" }, mergeConfig({ webTools: { provider: "auto", providerPriority: ["searxng", "ddgs"], searxng: { enabled: true, baseUrl: "http://127.0.0.1:9999" } } }))`
   - 期望：searxng 失败后自动降级到 ddgs，返回成功结果
 
-- [ ] **显式 provider 不降级**
+- [x] **显式 provider 不降级**
   - 执行：`web_search({ query: "typescript" }, mergeConfig({ webTools: { provider: "searxng", searxng: { enabled: true, baseUrl: "http://127.0.0.1:9999" } } }))`
   - 期望：失败后直接返回分类错误，不尝试其他 provider
 
-- [ ] **DDGS 结果数上限保护**
+- [x] **DDGS 结果数上限保护**
   - 执行：`web_search({ query: "typescript", numResults: 10 }, mergeConfig({ webTools: { provider: "ddgs" } }))`
   - 期望：DDGS 每次最多返回 5 条结果
 

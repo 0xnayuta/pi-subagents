@@ -1,7 +1,7 @@
 ---
 status: current
 audience: maintainer
-last_verified: 2026-05-08
+last_verified: 2026-05-09
 ---
 
 # 已知问题
@@ -188,7 +188,7 @@ message.type === "result" && typeof message.output === "string"
 
 4. **补充单元测试**
 
-   新增 `test/unit/collect-output.test.ts`，覆盖：
+   新增 `tests/unit/collect-output.test.ts`，覆盖：
 
    - 从 `turn_end` 提取最终文本
    - legacy `result.output` fallback
@@ -203,8 +203,8 @@ message.type === "result" && typeof message.output === "string"
 ```bash
 npx tsc --noEmit
 npx biome check src/runtime/foreground/collect-output.ts src/runtime/foreground/execution.ts
-node --experimental-strip-types --test test/unit/collect-output.test.ts
-find test/unit -name "*.test.ts" -print0 | xargs -0 node --experimental-strip-types --test
+node --experimental-strip-types --test tests/unit/collect-output.test.ts
+find tests/unit -name "*.test.ts" -print0 | xargs -0 node --experimental-strip-types --test
 ```
 
 重启 pi 后实际调用 `explorer` 搜索 authentication 相关代码，结果已返回干净的最终回答，不再输出原始 JSONL。
@@ -213,4 +213,4 @@ find test/unit -name "*.test.ts" -print0 | xargs -0 node --experimental-strip-ty
 
 - `src/runtime/foreground/execution.ts` — 接入 `collectOutput()`
 - `src/runtime/foreground/collect-output.ts` — JSONL 解析、最终文本提取、usage 提取
-- `test/unit/collect-output.test.ts` — 回归测试
+- `tests/unit/collect-output.test.ts` — 回归测试

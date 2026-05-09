@@ -1,7 +1,7 @@
 ---
-status: proposed
+status: accepted
 audience: maintainer
-last_verified: 2026-05-08
+last_verified: 2026-05-09
 ---
 
 # ADR 0004: 内置极简 readonly web tools

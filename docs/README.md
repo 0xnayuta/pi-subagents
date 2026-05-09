@@ -18,7 +18,7 @@ last_verified: 2026-05-08
 4. [配置参考](./reference/configuration.md)
 5. [结果 Schema](./reference/result-schema.md)
 6. [Web Tools 错误码](./reference/web-tools-error-codes.md)
-7. [已知问题列表](./known-issues.md)
+7. [已知问题列表](./issues/known-issues.md)
 
 ## 维护者文档
 
@@ -28,21 +28,20 @@ last_verified: 2026-05-08
 2. [扩展 API 参考](./guides/03-extension-api.md)
 3. [安全模型](./guides/05-security-model.md)
 4. [测试策略](./guides/06-testing.md)
-5. [内置 Web Tools 实施路线（Proposed）](./guides/07-web-tools-implementation-plan.md)
-6. [内置 Web Tools 轻量增强清单（Proposed）](./guides/08-web-tools-lightweight-enhancement-backlog.md)
-7. [Web Tools 运行时治理与可观测性](./guides/09-web-tools-runtime-governance-and-observability.md)
-8. [Web Search 验收清单（上线前）](./guides/10-web-search-acceptance-checklist.md)
-9. [Web Search 最小 Provider 接口与配置 Schema 设计（Proposed）](./guides/11-web-search-provider-interface-and-schema.md)
-10. [Web Search Provider 抽象迁移执行计划（Proposed）](./guides/12-web-search-provider-migration-execution-plan.md)
-11. [类型兼容说明](./type-compatibility.md)
-12. [发布前检查清单](./guides/release-checklist.md)
+5. [Web Tools 实施计划](./guides/07-web-tools-implementation-plan.md)
+6. [Web Tools 运行时治理与可观测性](./guides/09-web-tools-runtime-governance-and-observability.md)
+7. [Web Search 验收清单](./guides/10-web-search-acceptance-checklist.md)
+8. [Web Search Provider 接口设计](./guides/11-web-search-provider-interface-and-schema.md)
+9. [类型兼容说明](./issues/type-compatibility.md)
+10. [已知问题列表](./issues/known-issues.md)
+11. [发布前检查清单](./guides/release-checklist.md)
 
 ## 决策记录
 
 - [ADR 0001：采用轻量 foreground subagent 设计](./adr/0001-lightweight-foreground-subagents.md)
 - [ADR 0002：MVP 边界决策](./adr/0002-mvp-boundary-decisions.md)
-- [ADR 0003：自主触发子代理的改进方案（Proposed）](./adr/0003-autonomous-subagent-triggering.md)
-- [ADR 0004：内置极简 readonly web tools（Proposed）](./adr/0004-bundled-readonly-web-tools.md)
+- [ADR 0003：自主触发子代理的改进方案（已废弃，不实现）](./adr/0003-autonomous-subagent-triggering.md)
+- [ADR 0004：内置极简 readonly web tools（已实施）](./adr/0004-bundled-readonly-web-tools.md)
 
 ## 历史与审计
 

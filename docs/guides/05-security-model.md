@@ -1,7 +1,7 @@
 ---
 status: current
 audience: all
-last_verified: 2026-05-08
+last_verified: 2026-05-09
 ---
 
 # 安全模型
@@ -39,7 +39,8 @@ last_verified: 2026-05-08
 - 限制重定向
 - 默认只处理 HTML/text 内容
 - 不写项目文件；仅使用内存保存 `responseId` 结果
-- `web_search` 第一版仅支持 Brave Search API，需要 `BRAVE_SEARCH_API_KEY`
+- `web_search` 第一版支持多 provider 自动降级：DDGS 零配置兜底、商业 provider（tavily/serper/brave）有 key 时优先、自托管（openserp/searxng）需显式配置 endpoint
+- 搜索结果默认最多 5 条（DDGS 限制），商业 provider 优先
 - 不支持 browser cookie、登录态抓取、本地文件、GitHub clone、YouTube/视频或 PDF 专门处理
 
 完整设计见 [ADR 0004](../adr/0004-bundled-readonly-web-tools.md)。
