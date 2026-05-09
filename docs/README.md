@@ -19,7 +19,7 @@ last_verified: 2026-05-08
 5. [结果 Schema](./reference/result-schema.md)
 6. [Web Tools 错误码](./reference/web-tools-error-codes.md)
 7. [Web Tools 增强计划](./guides/12-web-tool-enhancement-plan.md)
-8. [已知问题列表](./issues/known-issues.md)
+8. [问题记录](./issues/issue-log.md)
 
 ## 维护者文档
 
@@ -33,10 +33,9 @@ last_verified: 2026-05-08
 6. [Web Tools 运行时治理与可观测性](./guides/09-web-tools-runtime-governance-and-observability.md)
 7. [Web Search 验收清单](./guides/10-web-search-acceptance-checklist.md)
 8. [Web Search Provider 接口设计](./guides/11-web-search-provider-interface-and-schema.md)
-9. [类型兼容说明](./issues/type-compatibility.md)
-10. [已知问题列表](./issues/known-issues.md)
-11. [发布前检查清单](./guides/release-checklist.md)
-12. [推迟合并 pi-lsp 的综合扩展计划](./guides/13-deferred-pi-lsp-merge-plan.md)
+9. [问题记录](./issues/issue-log.md)
+10. [发布前检查清单](./guides/release-checklist.md)
+11. [推迟合并 pi-lsp 的综合扩展计划](./guides/13-deferred-pi-lsp-merge-plan.md)
 
 ## 决策记录
 
