@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 audience: maintainer
 last_verified: 2026-05-10
 ---
@@ -8,7 +8,7 @@ last_verified: 2026-05-10
 
 ## 状态
 
-Proposed
+Accepted（2026-05-10 实施完成）
 
 ## 背景
 
@@ -103,97 +103,38 @@ User: "规划一下这个功能的测试方案"
 
 ## 影响
 
-### 文件变更
+### 文件变更（已实施 ✅）
 
-| 文件 | 变更 |
-|------|------|
-| `src/shared/types.ts` | 新增 `injectDelegationPolicy?: boolean` 配置项 |
-| `src/shared/delegation-policy.ts` | **新增**：委托策略文本常量 |
-| `src/extension/index.ts` | 新增 `before_agent_start` handler 注入委托策略 |
-| `src/config/load-config.ts` | 处理新配置项（默认 `true`） |
+| 文件 | 变更 | 状态 |
+|------|------|------|
+| `src/shared/delegation-policy.ts` | **新增**：`DELEGATION_POLICY` 和 `DELEGATION_EXAMPLES` 常量 | ✅ Done |
+| `src/shared/types.ts` | `ExtensionConfig` 新增 `injectDelegationPolicy?: boolean` | ✅ Done |
+| `src/config/load-config.ts` | `DEFAULT_CONFIG` 默认 `true`，`mergeConfig` 支持新字段 | ✅ Done |
+| `src/extension/index.ts` | 新增 `before_agent_start` handler，注入委托策略到主代理 system prompt | ✅ Done |
 
 ### 实现细节
 
-#### 1. 新增配置项
+#### 1. 配置项
 
-在 `ExtensionConfig` 中添加：
+`ExtensionConfig.injectDelegationPolicy`（默认 `true`），用户可通过 `~/.pi/agent/extensions/subagent/config.json` 设置 `false` 禁用。
 
-```typescript
-export interface ExtensionConfig {
-  // ... existing fields ...
-  injectDelegationPolicy?: boolean;  // 默认 true
-}
-```
+#### 2. 注入逻辑
 
-#### 2. 委托策略文本 (`src/shared/delegation-policy.ts`)
+在 `registerSubagentExtension` 中注册 `before_agent_start` handler：
+- 检查 `effectiveConfig.injectDelegationPolicy` 开关
+- 通过 `PI_SUBAGENT_CHILD` 环境变量排除子代理进程
+- 将 `DELEGATION_POLICY + DELEGATION_EXAMPLES` 追加到主代理 system prompt 末尾
 
-```typescript
-export const DELEGATION_POLICY = `
-## Subagent Delegation Policy
-
-When the user's request matches a subagent's specialty, prefer delegating:
-
-- **explorer**: Locating, navigating, or searching code/files in the codebase
-- **researcher**: Investigating external resources, comparing technologies, synthesizing information
-- **reviewer**: Evaluating code quality, checking for issues, analyzing architecture
-- **implementer**: Planning implementation, designing solutions, architecting features
-- **tester**: Designing test strategies, identifying edge cases, planning coverage
-
-Delegate when the task is focused and benefits from specialized tools.
-Handle directly when the task is simple, requires immediate action, or is too small to benefit from delegation.
-`;
-
-export const DELEGATION_EXAMPLES = `
-## Delegation Examples
-
-User: "Find where authentication is implemented"
-→ Delegate to explorer
-
-User: "帮我找一下认证模块在哪里"
-→ Delegate to explorer
-
-User: "Compare React and Vue for this project"
-→ Delegate to researcher
-
-User: "审查这段代码的安全性"
-→ Delegate to reviewer
-
-User: "How should I implement the payment flow?"
-→ Delegate to implementer
-
-User: "规划一下这个功能的测试方案"
-→ Delegate to tester
-`;
-```
-
-#### 3. 注入逻辑 (`src/extension/index.ts`)
-
-```typescript
-pi.on("before_agent_start", async (event) => {
-  if (!effectiveConfig.injectDelegationPolicy) return;
-  
-  // Only inject into parent agent, not child subagents
-  if (process.env[PI_SUBAGENT_CHILD] === "1") return;
-  
-  const policy = DELEGATION_POLICY + DELEGATION_EXAMPLES;
-  const newPrompt = event.systemPrompt + "\n\n" + policy;
-  
-  return { systemPrompt: newPrompt };
-});
-```
-
-#### 4. 配置加载 (`src/config/load-config.ts`)
-
-在默认配置中设置 `injectDelegationPolicy: true`。
-
-### Token 开销估算
+#### 3. Token 开销
 
 - 语义意图描述：~150 tokens
 - Few-shot 示例（6 个）：~200 tokens
 - **总计**：~350 tokens（约占 system prompt 的 2-5%）
 
-### 用户自定义冲突缓解
+### 验证
 
-- 默认启用，但用户可通过 `injectDelegationPolicy: false` 禁用
-- 委托策略追加在 system prompt 末尾，优先级低于用户自定义内容
-- 未来可考虑支持用户自定义委托策略文本
+| 检查项 | 结果 |
+|--------|------|
+| `pnpm typecheck` | ✅ 通过 |
+| `pnpm lint` | ✅ 通过 |
+| `pnpm test:unit` | ✅ 144/144 通过 |
