@@ -31,8 +31,9 @@ last_verified: 2026-05-08
 5. [内置 Web Tools 实施路线（Proposed）](./guides/07-web-tools-implementation-plan.md)
 6. [内置 Web Tools 轻量增强清单（Proposed）](./guides/08-web-tools-lightweight-enhancement-backlog.md)
 7. [Web Tools 运行时治理与可观测性](./guides/09-web-tools-runtime-governance-and-observability.md)
-8. [类型兼容说明](./type-compatibility.md)
-9. [发布前检查清单](./guides/release-checklist.md)
+8. [Web Search 验收清单（上线前）](./guides/10-web-search-acceptance-checklist.md)
+9. [类型兼容说明](./type-compatibility.md)
+10. [发布前检查清单](./guides/release-checklist.md)
 
 ## 决策记录
 
