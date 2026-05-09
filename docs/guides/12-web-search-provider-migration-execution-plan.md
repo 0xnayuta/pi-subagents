@@ -37,7 +37,7 @@ last_verified: 2026-05-08
 
 ## 2. 分阶段执行
 
-## Phase 0：准备与基线锁定（0.5 天）
+## Phase 0：准备与基线锁定
 
 ### 任务
 
@@ -56,7 +56,7 @@ last_verified: 2026-05-08
 
 ---
 
-## Phase A：抽象层落地（无行为变化）（1~1.5 天）
+## Phase A：抽象层落地（无行为变化）
 
 ### 任务
 
@@ -82,11 +82,14 @@ last_verified: 2026-05-08
 
 ---
 
-## Phase B：零配置兜底（ddgs）（1 天）
+## Phase B：零配置兜底（ddgs）
+
+> 实施约定：Phase B 中 `ddgs` 暂时指 **DuckDuckGo Lite/HTML** 实现；
+> 后续可在不改变上层接口与配置名（`ddgs`）的前提下，切换为 DDGS 封装实现。
 
 ### 任务
 
-1. 新增 `ddgs` adapter：
+1. 新增 `ddgs` adapter（Phase B 采用 DuckDuckGo Lite/HTML）：
    - `src/web/providers/ddgs.ts`
 2. 支持 `provider=auto` 的降级链（先 brave，后 ddgs）
 3. 对 `ddgs` 结果做统一归一化
@@ -104,7 +107,7 @@ last_verified: 2026-05-08
 
 ---
 
-## Phase C：开放/自托管 provider（openserp + searxng）（1.5~2 天）
+## Phase C：开放/自托管 provider（openserp + searxng）
 
 ### 任务
 
@@ -123,7 +126,7 @@ last_verified: 2026-05-08
 
 ---
 
-## Phase D：商业增强（tavily + serper）（1~1.5 天）
+## Phase D：商业增强（tavily + serper）
 
 ### 任务
 
@@ -233,7 +236,8 @@ pnpm docs:check
 
 ### M2（Phase B 完成）
 
-- auto + ddgs 兜底可用
+- auto + ddgs（DuckDuckGo Lite/HTML）兜底可用
+- 保持 `ddgs` 作为稳定 provider 名称，为后续切换到 DDGS 封装预留兼容层
 
 ### M3（Phase C 完成）
 

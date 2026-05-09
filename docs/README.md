@@ -49,6 +49,7 @@ last_verified: 2026-05-08
 这些文档记录简化改造过程，不作为当前代码结构的 source of truth。
 
 - [Phase 0 审计](./audits/phase-0-audit.md)
+- [Web Search Provider 迁移 Phase 0 基线报告](./audits/web-search-provider-phase0-baseline.md)
 - [简化改造实施记录](./audits/simplification-implementation-history.md)
 - [删除清单审计](./audits/deletion-audit.md)
 - [pi-subagents 简化改造参考文档](./pi-subagents-simplification-guide.md)

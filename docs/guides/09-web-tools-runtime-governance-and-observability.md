@@ -127,6 +127,7 @@ P2 增强点：
   "webTools": {
     "enabled": true,
     "provider": "brave",
+    "providerPriority": ["brave", "tavily", "serper", "openserp", "searxng", "ddgs"],
     "timeoutMs": 10000,
     "maxResponseBytes": 1048576,
     "maxContentChars": 30000,
@@ -135,7 +136,27 @@ P2 增强点：
     "jinaTimeoutMs": 8000,
     "maxStoredResults": 100,
     "maxStoredContentChars": 200000,
-    "debug": false
+    "debug": false,
+    "openserp": {
+      "enabled": false,
+      "baseUrl": "https://api.openserp.com/search",
+      "apiKeyEnv": "OPENSERP_API_KEY"
+    },
+    "searxng": {
+      "enabled": false,
+      "baseUrl": "http://127.0.0.1:8080",
+      "defaultEngine": "google"
+    },
+    "tavily": {
+      "enabled": false,
+      "baseUrl": "https://api.tavily.com/search",
+      "apiKeyEnv": "TAVILY_API_KEY"
+    },
+    "serper": {
+      "enabled": false,
+      "baseUrl": "https://google.serper.dev/search",
+      "apiKeyEnv": "SERPER_API_KEY"
+    }
   }
 }
 ```
